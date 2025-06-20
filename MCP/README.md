@@ -1,6 +1,6 @@
-# Zero-Vector MCP Server v2.0
+# Zero-Vector MCP Server v3.0
 
-A comprehensive Model Context Protocol (MCP) server for Zero-Vector's hybrid vector-graph persona and memory management system. This v2.0 implementation combines semantic vector search with knowledge graph capabilities for enhanced AI memory and relationship understanding, now featuring 18 specialized tools including advanced content access controls.
+A comprehensive Model Context Protocol (MCP) server for Zero-Vector's hybrid vector-graph persona and memory management system with advanced LangGraph workflow capabilities. This v3.0 implementation combines semantic vector search with knowledge graph capabilities and sophisticated multi-agent workflow orchestration, featuring 24 specialized tools including LangGraph workflow management and human-in-the-loop processing.
 
 ## Features
 
@@ -25,6 +25,14 @@ A comprehensive Model Context Protocol (MCP) server for Zero-Vector's hybrid vec
 - **get_graph_context** - Retrieve detailed context and relationships for specific entities
 - **get_graph_stats** - Comprehensive knowledge graph statistics and health metrics
 
+### LangGraph Workflow Management (6 tools) - NEW in v3.0
+- **execute_workflow** - Execute LangGraph workflows with custom configuration and persona-specific processing
+- **get_workflow_status** - Monitor workflow execution status, progress, and detailed metadata
+- **resume_workflow** - Resume interrupted workflows with human-in-the-loop approval support
+- **cancel_workflow** - Cancel running workflows with proper cleanup and logging
+- **list_active_workflows** - List and filter active workflows with comprehensive status information
+- **get_workflow_metrics** - Get detailed performance metrics, analytics, and system health data
+
 ### Utilities (3 tools)
 - **get_system_health** - Check Zero-Vector server health and hybrid system status
 - **get_persona_stats** - Get persona, memory, and knowledge graph usage statistics
@@ -34,8 +42,9 @@ A comprehensive Model Context Protocol (MCP) server for Zero-Vector's hybrid vec
 
 ### Prerequisites
 - Node.js 18.0.0 or higher
-- Zero-Vector server running and accessible
-- Valid Zero-Vector API key
+- Zero-Vector v2 server running (port 3000) - existing system
+- Zero-Vector v3 server running (port 3001) - LangGraph system
+- Valid Zero-Vector API keys for both servers
 
 ### Setup
 
@@ -53,19 +62,24 @@ A comprehensive Model Context Protocol (MCP) server for Zero-Vector's hybrid vec
 
 3. **Set environment variables in `.env`:**
    ```env
-   # Zero-Vector Server Configuration
+   # Zero-Vector v2 Server (Original System)
    ZERO_VECTOR_BASE_URL=http://localhost:3000
-   ZERO_VECTOR_API_KEY=your_api_key_here
+   ZERO_VECTOR_API_KEY=your_zero_vector_2_api_key
    
-   # Zero Vector 2.0 Hybrid Features (auto-detected)
+   # Zero-Vector v3 Server (LangGraph System)
+   ZERO_VECTOR_V3_BASE_URL=http://localhost:3001
+   ZERO_VECTOR_V3_API_KEY=your_zero_vector_3_api_key
+   
+   # Zero Vector Features (auto-detected)
    GRAPH_ENABLED=true
    FEATURE_HYBRID_SEARCH=true
    FEATURE_ENTITY_EXTRACTION=true
    FEATURE_GRAPH_EXPANSION=true
+   FEATURE_LANGGRAPH_WORKFLOWS=true
    
    # Optional configurations
-   MCP_SERVER_NAME=zero-vector-mcp-v2
-   MCP_SERVER_VERSION=2.0.0
+   MCP_SERVER_NAME=zero-vector-mcp-v3
+   MCP_SERVER_VERSION=3.0.0
    LOG_LEVEL=info
    NODE_ENV=development
    ```
@@ -75,10 +89,10 @@ A comprehensive Model Context Protocol (MCP) server for Zero-Vector's hybrid vec
 ### Testing the Server
 
 ```bash
-# Test connection to Zero-Vector server
+# Test connection to both Zero-Vector servers
 npm run test:connection
 
-# List available tools
+# List all available tools (24 total)
 npm run list:tools
 
 # Check version
@@ -102,12 +116,14 @@ Add to your Cline MCP configuration:
 ```json
 {
   "mcpServers": {
-    "zero-vector-clean": {
+    "zero-vector-v3": {
       "command": "node",
       "args": ["C:/path/to/your/MCP/src/index.js"],
       "env": {
         "ZERO_VECTOR_BASE_URL": "http://localhost:3000",
-        "ZERO_VECTOR_API_KEY": "your_api_key_here"
+        "ZERO_VECTOR_API_KEY": "your_zero_vector_2_api_key",
+        "ZERO_VECTOR_V3_BASE_URL": "http://localhost:3001",
+        "ZERO_VECTOR_V3_API_KEY": "your_zero_vector_3_api_key"
       }
     }
   }
@@ -116,7 +132,9 @@ Add to your Cline MCP configuration:
 
 ## Tool Examples
 
-### Create a Persona
+### Traditional Operations (v2.0 compatibility)
+
+#### Create a Persona
 ```javascript
 {
   "name": "Assistant",
@@ -128,7 +146,7 @@ Add to your Cline MCP configuration:
 }
 ```
 
-### Add a Memory (with Entity Extraction)
+#### Add a Memory (with Entity Extraction)
 ```javascript
 {
   "personaId": "uuid-here",
@@ -138,17 +156,7 @@ Add to your Cline MCP configuration:
 }
 ```
 
-### Search Memories
-```javascript
-{
-  "personaId": "uuid-here",
-  "query": "user preferences",
-  "limit": 10,
-  "threshold": 0.3
-}
-```
-
-### Hybrid Memory Search (v2.0)
+#### Hybrid Memory Search (v2.0)
 ```javascript
 {
   "personaId": "uuid-here",
@@ -160,28 +168,96 @@ Add to your Cline MCP configuration:
 }
 ```
 
-### Explore Knowledge Graph
+### LangGraph Workflow Operations (v3.0)
+
+#### Execute Basic Workflow
 ```javascript
 {
-  "personaId": "uuid-here",
-  "query": "John Smith",
-  "limit": 10,
-  "includeRelationships": true,
-  "entityTypes": ["PERSON", "ORGANIZATION"]
+  "query": "Tell me about machine learning fundamentals",
+  "persona": "technical_expert",
+  "user_id": "user123",
+  "workflow_type": "zero_vector_conversation",
+  "config": {
+    "enable_approval": false,
+    "cache_enabled": true,
+    "confidence_threshold": 0.8,
+    "max_reasoning_steps": 5
+  }
 }
 ```
 
-### Get Graph Context
+#### Execute Multi-Step Reasoning Workflow
 ```javascript
 {
-  "personaId": "uuid-here",
-  "entityIds": ["entity-uuid-1", "entity-uuid-2"],
-  "includeRelationships": true,
-  "maxDepth": 2
+  "query": "Compare machine learning approaches for natural language processing and recommend the best approach for a chatbot system",
+  "persona": "technical_expert", 
+  "user_id": "user456",
+  "workflow_type": "multi_step_reasoning",
+  "config": {
+    "enable_approval": true,
+    "max_reasoning_steps": 10,
+    "confidence_threshold": 0.9,
+    "enable_memory_maintenance": true
+  },
+  "thread_id": "conversation_abc123"
 }
 ```
 
-### Advanced Content Access (New in v2.0)
+#### Resume Interrupted Workflow (Human-in-the-Loop)
+```javascript
+{
+  "thread_id": "conversation_abc123",
+  "workflow_id": "workflow_xyz789",
+  "approval_result": {
+    "approved": true,
+    "feedback": "Proceed with the recommended approach, but add more details about implementation complexity",
+    "modifications": {
+      "add_implementation_details": true,
+      "focus_areas": ["complexity", "scalability", "cost"]
+    }
+  }
+}
+```
+
+#### Get Workflow Status
+```javascript
+{
+  "workflow_id": "workflow_xyz789",
+  "thread_id": "conversation_abc123",
+  "include_metadata": true
+}
+```
+
+#### List Active Workflows
+```javascript
+{
+  "user_id": "user123",
+  "status": "running",
+  "workflow_type": "multi_step_reasoning",
+  "limit": 10
+}
+```
+
+#### Get Workflow Performance Metrics
+```javascript
+{
+  "time_range": "24h",
+  "workflow_type": "zero_vector_conversation",
+  "user_id": "user123",
+  "include_detailed": true
+}
+```
+
+#### Cancel Running Workflow
+```javascript
+{
+  "workflow_id": "workflow_xyz789",
+  "thread_id": "conversation_abc123",
+  "reason": "User requested cancellation due to changed requirements"
+}
+```
+
+### Advanced Content Access (v2.0 Enhanced)
 
 #### Get Full Memory Content
 ```javascript
@@ -198,31 +274,37 @@ Add to your Cline MCP configuration:
   "personaId": "uuid-here",
   "query": "white hat tales",
   "limit": 5,
-  "content_preview_length": 500,  // Show 500 characters instead of default 150
+  "content_preview_length": 500,
   "threshold": 0.3
 }
 ```
 
-#### Search with Full Content Display
-```javascript
-{
-  "personaId": "uuid-here",
-  "query": "complete stories",
-  "limit": 3,
-  "show_full_content": true,  // Display complete content without truncation
-  "threshold": 0.4
-}
+## Architecture
+
+### Multi-Server Integration (v3.0)
+
+```
+┌─────────────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
+│   External AI       │    │   MCP Server v3.0    │    │   Zero-Vector v3    │
+│   Systems/Clients   │────│   (24 Tools)         │────│   (LangGraph)       │
+└─────────────────────┘    └──────────────────────┘    └─────────────────────┘
+                                      │
+                           ┌──────────────────────┐
+                           │   Zero-Vector v2     │
+                           │   (Original System)  │
+                           └──────────────────────┘
 ```
 
-#### Search with No Content Limits
-```javascript
-{
-  "personaId": "uuid-here",
-  "query": "narrative content",
-  "limit": 10,
-  "content_preview_length": 0,  // 0 = no truncation
-  "threshold": 0.3
-}
+### Workflow Processing Flow
+
+```
+Query → MCP Server → Zero-Vector v3 → LangGraph Workflow → Agents → Response
+                           ↓
+                    State Management
+                           ↓
+                    Human Approval (if needed)
+                           ↓
+                    Memory Integration → Zero-Vector v2
 ```
 
 ## Configuration
@@ -231,12 +313,20 @@ Add to your Cline MCP configuration:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ZERO_VECTOR_BASE_URL` | `http://localhost:3000` | Zero-Vector server URL |
-| `ZERO_VECTOR_API_KEY` | *required* | API key for authentication |
+| `ZERO_VECTOR_BASE_URL` | `http://localhost:3000` | Zero-Vector v2 server URL |
+| `ZERO_VECTOR_API_KEY` | *required* | API key for v2 server |
+| `ZERO_VECTOR_V3_BASE_URL` | `http://localhost:3001` | Zero-Vector v3 server URL |
+| `ZERO_VECTOR_V3_API_KEY` | *required* | API key for v3 server |
 | `ZERO_VECTOR_TIMEOUT` | `30000` | Request timeout (ms) |
 | `ZERO_VECTOR_RETRY_ATTEMPTS` | `3` | Retry attempts for failed requests |
-| `MCP_SERVER_NAME` | `zero-vector-mcp-clean` | MCP server name |
+| `MCP_SERVER_NAME` | `zero-vector-mcp-v3` | MCP server name |
 | `LOG_LEVEL` | `info` | Logging level (debug, info, warn, error) |
+
+### Workflow Types
+- **zero_vector_conversation** - Standard conversation processing with persona and memory
+- **multi_step_reasoning** - Complex multi-step reasoning with approval gates
+- **human_approval** - Human-in-the-loop workflows requiring approval
+- **memory_maintenance** - Automated memory cleanup and optimization
 
 ### Memory Types
 - **conversation** - Chat exchanges
@@ -249,8 +339,10 @@ Add to your Cline MCP configuration:
 
 The server provides comprehensive error handling with:
 - **Input validation** - All parameters validated against schemas
+- **Multi-server support** - Automatic failover and routing
 - **API error mapping** - Clear error messages with suggestions
 - **Retry logic** - Automatic retries for transient failures
+- **Workflow interruption** - Graceful handling of interrupted workflows
 - **Graceful degradation** - Informative error responses
 
 ## Logging
@@ -259,43 +351,58 @@ Structured logging with Winston:
 - **Console output** - Colored logs for development
 - **Configurable levels** - Debug, info, warn, error
 - **Context tracking** - Tool execution and performance metrics
+- **Workflow tracing** - Complete workflow execution tracking
+- **Multi-server logging** - Separate logs for v2 and v3 operations
 
 ## Performance
 
 Optimized for efficiency:
 - **Streamlined codebase** - Focused on essential operations
 - **Efficient API client** - Connection pooling and retry logic
+- **Multi-server routing** - Intelligent routing between v2 and v3
+- **Workflow caching** - Performance optimization for repeated operations
 - **Minimal dependencies** - Reduced overhead and faster startup
 
-## Zero Vector 2.0 Enhancements
+## Zero Vector v3.0 Enhancements
 
-This v2.0 version adds:
-- ✅ **Hybrid Vector-Graph** - Combines semantic search with knowledge graphs
-- ✅ **Entity Extraction** - Automatic entity recognition and relationship mapping
-- ✅ **Graph Tools** - 4 new tools for knowledge graph exploration and context
-- ✅ **Enhanced Memory** - Graph-expanded memory search with relationship traversal
-- ✅ **Backward Compatible** - All v1.0 tools work unchanged with added capabilities
-- ✅ **Feature Detection** - Automatically detects and uses available v2.0 features
+This v3.0 version adds:
+- ✅ **LangGraph Workflows** - 6 new tools for advanced workflow management
+- ✅ **Multi-Agent Orchestration** - Sophisticated agent coordination and reasoning
+- ✅ **Human-in-the-Loop** - Approval workflows with resume capabilities
+- ✅ **Performance Monitoring** - Real-time metrics and analytics
+- ✅ **Thread Continuity** - Persistent conversation state across sessions
+- ✅ **Multi-Server Support** - Seamless integration between v2 and v3 systems
+- ✅ **Backward Compatible** - All v2.0 tools work unchanged with added capabilities
+- ✅ **Production Ready** - Authentication, monitoring, and enterprise features
 
 ## Troubleshooting
 
 ### Connection Issues
 ```bash
-# Test connectivity
+# Test connectivity to both servers
 npm run test:connection
 
-# Check Zero-Vector server status
+# Check Zero-Vector v2 server status
 curl http://localhost:3000/health
+
+# Check Zero-Vector v3 server status  
+curl http://localhost:3001/health
 ```
 
 ### Authentication Problems
-- Verify `ZERO_VECTOR_API_KEY` in `.env`
-- Check API key is active in Zero-Vector server
-- Ensure proper permissions
+- Verify both `ZERO_VECTOR_API_KEY` and `ZERO_VECTOR_V3_API_KEY` in `.env`
+- Check API keys are active in respective Zero-Vector servers
+- Ensure proper permissions for workflow operations
+
+### Workflow Issues
+- Check workflow status with `get_workflow_status`
+- Review workflow metrics for performance issues
+- Use `cancel_workflow` to clean up stuck workflows
+- Enable debug logging for detailed workflow tracing
 
 ### Memory/Persona Not Found
 - Verify UUID format and existence
-- Check persona is active
+- Check persona is active on correct server (v2 vs v3)
 - Ensure API key has access permissions
 
 ## Development
@@ -304,28 +411,43 @@ curl http://localhost:3000/health
 ```
 MCP/
 ├── src/
-│   ├── index.js          # Main MCP server
-│   ├── config.js         # Configuration
-│   ├── apiClient.js      # HTTP client
+│   ├── index.js          # Main MCP server (24 tools)
+│   ├── config.js         # Multi-server configuration
+│   ├── apiClient.js      # Multi-server HTTP client
 │   ├── tools/
-│   │   ├── personas.js   # Persona management
-│   │   ├── memories.js   # Memory operations
-│   │   ├── graph.js      # Graph management (v2.0)
-│   │   └── utilities.js  # System utilities
+│   │   ├── personas.js   # Persona management (5 tools)
+│   │   ├── memories.js   # Memory operations (6 tools)
+│   │   ├── graph.js      # Graph management (4 tools)
+│   │   ├── workflows.js  # LangGraph workflows (6 tools) - NEW
+│   │   └── utilities.js  # System utilities (3 tools)
 │   └── utils/
-│       ├── logger.js     # Logging utility
+│       ├── logger.js     # Enhanced logging utility
 │       └── validation.js # Input validation
-├── .env                  # Environment config
+├── .env                  # Environment config (multi-server)
 ├── package.json         # Dependencies
-└── README.md           # Documentation
+└── README.md           # This documentation
 ```
 
 ### Adding New Tools
 1. Define tool in appropriate module
 2. Add validation schema
-3. Implement handler function
+3. Implement handler function with multi-server support
 4. Export in tool array
-5. Update documentation
+5. Update documentation and examples
+
+## Workflow Development
+
+### Creating Custom Workflows
+1. Define workflow type in Zero-Vector v3 configuration
+2. Implement workflow logic using LangGraph
+3. Add MCP tool wrapper for external access
+4. Test with approval and monitoring features
+
+### Performance Optimization
+- Use workflow caching for repeated operations
+- Monitor metrics with `get_workflow_metrics`
+- Implement proper error handling and retries
+- Consider thread-based conversation continuity
 
 ## License
 
@@ -334,7 +456,14 @@ MIT License - see LICENSE file for details.
 ## Support
 
 For issues and questions:
-1. Check Zero-Vector server logs
-2. Verify configuration and connectivity
-3. Review tool documentation
+1. Check both Zero-Vector server logs (v2 and v3)
+2. Verify multi-server configuration and connectivity
+3. Review workflow documentation and examples
 4. Enable debug logging for detailed output
+5. Use workflow monitoring tools for troubleshooting
+
+## Version History
+
+- **v3.0** - LangGraph workflow integration, multi-server support, 24 tools
+- **v2.0** - Hybrid vector-graph capabilities, entity extraction, 18 tools
+- **v1.0** - Basic persona and memory management, 14 tools
