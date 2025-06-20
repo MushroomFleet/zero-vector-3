@@ -2,160 +2,391 @@ const winston = require('winston');
 const path = require('path');
 const config = require('../config');
 
-// Ensure logs directory exists
-const fs = require('fs');
-const logsDir = path.join(__dirname, '../../logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
+/**
+ * Enhanced logging system for Zero-Vector-3
+ * Supports structured logging with performance metrics and LangGraph integration
+ */
 
-// Custom format for console output
+// Define log levels
+const logLevels = {
+  error: 0,
+  warn: 1,
+  info: 2,
+  debug: 3,
+  trace: 4
+};
+
+// Define log colors
+const logColors = {
+  error: 'red',
+  warn: 'yellow',
+  info: 'green',
+  debug: 'blue',
+  trace: 'magenta'
+};
+
+winston.addColors(logColors);
+
+// Create formatters
 const consoleFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.colorize(),
+  winston.format.errors({ stack: true }),
+  winston.format.colorize({ all: true }),
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
-    const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
-    return `${timestamp} [${level}]: ${message} ${metaStr}`;
+    let log = `${timestamp} [${level}]: ${message}`;
+    
+    // Add metadata if present
+    if (Object.keys(meta).length > 0) {
+      log += ` ${JSON.stringify(meta, null, 2)}`;
+    }
+    
+    return log;
   })
 );
 
-// Custom format for file output
 const fileFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
   winston.format.json()
 );
 
-// Create logger instance
-const logger = winston.createLogger({
-  level: config.monitoring.logLevel,
-  defaultMeta: { 
-    service: 'zero-vector-server',
-    version: '1.0.0'
-  },
-  transports: [
-    // Error log file
-    new winston.transports.File({
-      filename: path.join(logsDir, 'error.log'),
-      level: 'error',
-      format: fileFormat,
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    }),
+// Create transports
+const transports = [];
 
-    // Combined log file
-    new winston.transports.File({
-      filename: path.join(logsDir, 'combined.log'),
-      format: fileFormat,
-      maxsize: 5242880, // 5MB
-      maxFiles: 10
-    }),
-
-    // Performance log file
-    new winston.transports.File({
-      filename: path.join(logsDir, 'performance.log'),
-      level: 'info',
-      format: fileFormat,
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
+// Console transport (development)
+if (config.logging.enableConsole) {
+  transports.push(
+    new winston.transports.Console({
+      level: config.logging.level,
+      format: consoleFormat,
+      handleExceptions: true,
+      handleRejections: true
     })
-  ]
-});
-
-// Add console transport in development
-if (config.server.nodeEnv !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: consoleFormat
-  }));
+  );
 }
 
-// Performance logging helper
-const logPerformance = (operation, duration, metadata = {}) => {
-  logger.info({
-    event: 'performance_metric',
-    operation,
-    duration,
-    ...metadata
-  });
+// File transports (production and development)
+const logDir = path.join(__dirname, '../../logs');
 
-  // Warn on slow operations
-  if (duration > 1000) {
-    logger.warn({
-      event: 'slow_operation',
-      operation,
-      duration,
-      ...metadata
-    });
-  }
-};
+transports.push(
+  // Combined log file
+  new winston.transports.File({
+    filename: path.join(logDir, 'combined.log'),
+    level: config.logging.level,
+    format: fileFormat,
+    maxsize: 10 * 1024 * 1024, // 10MB
+    maxFiles: 5,
+    tailable: true
+  }),
+  
+  // Error log file
+  new winston.transports.File({
+    filename: path.join(logDir, 'error.log'),
+    level: 'error',
+    format: fileFormat,
+    maxsize: 10 * 1024 * 1024, // 10MB
+    maxFiles: 5,
+    tailable: true
+  }),
+  
+  // Performance log file
+  new winston.transports.File({
+    filename: path.join(logDir, 'performance.log'),
+    level: 'info',
+    format: fileFormat,
+    maxsize: 10 * 1024 * 1024, // 10MB
+    maxFiles: 3,
+    tailable: true
+  })
+);
 
-// API request logging helper
-const logApiRequest = (req, res, duration) => {
-  const logData = {
-    event: 'api_request',
-    method: req.method,
-    url: req.url,
-    status: res.statusCode,
-    duration,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
-    contentLength: res.get('Content-Length') || 0
-  };
+// Create logger instance
+const logger = winston.createLogger({
+  levels: logLevels,
+  level: config.logging.level,
+  format: fileFormat,
+  transports,
+  exitOnError: false
+});
 
-  // Add user context if available
-  if (req.user) {
-    logData.userId = req.user.id;
-  }
-
-  if (req.apiKey) {
-    logData.apiKeyId = req.apiKey.id;
-  }
-
-  // Log at appropriate level based on status code
-  if (res.statusCode >= 500) {
-    logger.error(logData);
-  } else if (res.statusCode >= 400) {
-    logger.warn(logData);
-  } else {
-    logger.info(logData);
-  }
-};
-
-// Error logging helper
-const logError = (error, context = {}) => {
-  logger.error({
-    event: 'error',
+/**
+ * Enhanced error logging with context
+ */
+function logError(error, context = {}) {
+  const errorInfo = {
     message: error.message,
     stack: error.stack,
-    ...context
-  });
-};
+    name: error.name,
+    code: error.code,
+    ...context,
+    timestamp: new Date().toISOString(),
+    severity: 'error'
+  };
 
-// Vector operation logging helper
-const logVectorOperation = (operation, vectorCount, dimensions, duration, metadata = {}) => {
-  logger.info({
-    event: 'vector_operation',
+  logger.error('Application error occurred', errorInfo);
+  
+  // Log to performance file for error tracking
+  logger.info('Performance metric', {
+    type: 'error',
+    operation: context.operation || 'unknown',
+    duration: context.duration || 0,
+    errorCode: error.code || 'UNKNOWN_ERROR',
+    timestamp: new Date().toISOString()
+  });
+
+  return errorInfo;
+}
+
+/**
+ * Performance logging for operations
+ */
+function logPerformance(operation, duration, metadata = {}) {
+  const perfInfo = {
+    type: 'performance',
     operation,
-    vectorCount,
-    dimensions,
     duration,
-    ...metadata
-  });
-};
+    ...metadata,
+    timestamp: new Date().toISOString()
+  };
 
-// Memory usage logging helper
-const logMemoryUsage = (memoryStats) => {
-  logger.info({
-    event: 'memory_usage',
-    ...memoryStats
-  });
-};
+  logger.info('Performance metric', perfInfo);
+  return perfInfo;
+}
 
+/**
+ * LangGraph workflow logging
+ */
+function logWorkflow(workflowId, step, data = {}) {
+  const workflowInfo = {
+    type: 'workflow',
+    workflowId,
+    step,
+    ...data,
+    timestamp: new Date().toISOString()
+  };
+
+  logger.info('Workflow step', workflowInfo);
+  return workflowInfo;
+}
+
+/**
+ * Agent execution logging
+ */
+function logAgent(agentName, operation, data = {}) {
+  const agentInfo = {
+    type: 'agent',
+    agent: agentName,
+    operation,
+    ...data,
+    timestamp: new Date().toISOString()
+  };
+
+  logger.debug('Agent execution', agentInfo);
+  return agentInfo;
+}
+
+/**
+ * Memory operation logging
+ */
+function logMemory(operation, personaId, data = {}) {
+  const memoryInfo = {
+    type: 'memory',
+    operation,
+    personaId,
+    ...data,
+    timestamp: new Date().toISOString()
+  };
+
+  logger.debug('Memory operation', memoryInfo);
+  return memoryInfo;
+}
+
+/**
+ * Vector operation logging
+ */
+function logVector(operation, data = {}) {
+  const vectorInfo = {
+    type: 'vector',
+    operation,
+    ...data,
+    timestamp: new Date().toISOString()
+  };
+
+  logger.debug('Vector operation', vectorInfo);
+  return vectorInfo;
+}
+
+/**
+ * API request logging middleware
+ */
+function createRequestLogger() {
+  return (req, res, next) => {
+    const startTime = Date.now();
+    
+    // Log request
+    logger.info('API request', {
+      type: 'request',
+      method: req.method,
+      url: req.url,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip,
+      requestId: req.id || `req_${Date.now()}`,
+      timestamp: new Date().toISOString()
+    });
+
+    // Override res.end to log response
+    const originalEnd = res.end;
+    res.end = function(chunk, encoding) {
+      const duration = Date.now() - startTime;
+      
+      logger.info('API response', {
+        type: 'response',
+        method: req.method,
+        url: req.url,
+        statusCode: res.statusCode,
+        duration,
+        requestId: req.id || `req_${Date.now()}`,
+        timestamp: new Date().toISOString()
+      });
+
+      // Log performance metric
+      logPerformance('api_request', duration, {
+        method: req.method,
+        url: req.url,
+        statusCode: res.statusCode,
+        requestId: req.id
+      });
+
+      originalEnd.call(this, chunk, encoding);
+    };
+
+    next();
+  };
+}
+
+/**
+ * Performance timer utility
+ */
+class PerformanceTimer {
+  constructor(operation, metadata = {}) {
+    this.operation = operation;
+    this.metadata = metadata;
+    this.startTime = Date.now();
+    this.startMemory = process.memoryUsage();
+  }
+
+  end(additionalMetadata = {}) {
+    const endTime = Date.now();
+    const endMemory = process.memoryUsage();
+    const duration = endTime - this.startTime;
+    
+    const perfData = {
+      ...this.metadata,
+      ...additionalMetadata,
+      duration,
+      memoryDelta: {
+        rss: endMemory.rss - this.startMemory.rss,
+        heapUsed: endMemory.heapUsed - this.startMemory.heapUsed,
+        heapTotal: endMemory.heapTotal - this.startMemory.heapTotal
+      },
+      finalMemory: endMemory
+    };
+
+    return logPerformance(this.operation, duration, perfData);
+  }
+
+  checkpoint(label) {
+    const checkpointTime = Date.now();
+    const duration = checkpointTime - this.startTime;
+    
+    logger.debug('Performance checkpoint', {
+      type: 'checkpoint',
+      operation: this.operation,
+      label,
+      duration,
+      timestamp: new Date().toISOString()
+    });
+
+    return duration;
+  }
+}
+
+/**
+ * Create performance timer
+ */
+function createTimer(operation, metadata = {}) {
+  return new PerformanceTimer(operation, metadata);
+}
+
+/**
+ * Log system metrics
+ */
+function logSystemMetrics() {
+  const memory = process.memoryUsage();
+  const cpu = process.cpuUsage();
+  
+  logger.info('System metrics', {
+    type: 'system',
+    memory: {
+      rss: Math.round(memory.rss / 1024 / 1024), // MB
+      heapUsed: Math.round(memory.heapUsed / 1024 / 1024), // MB
+      heapTotal: Math.round(memory.heapTotal / 1024 / 1024), // MB
+      external: Math.round(memory.external / 1024 / 1024) // MB
+    },
+    cpu: {
+      user: cpu.user,
+      system: cpu.system
+    },
+    uptime: Math.round(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+}
+
+/**
+ * Handle uncaught exceptions and rejections
+ */
+process.on('uncaughtException', (error) => {
+  logError(error, {
+    operation: 'uncaughtException',
+    fatal: true
+  });
+  
+  // Give time for logs to write before exiting
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logError(new Error(`Unhandled Rejection: ${reason}`), {
+    operation: 'unhandledRejection',
+    promise: promise.toString()
+  });
+});
+
+// Log system metrics periodically in production
+if (config.server.nodeEnv === 'production') {
+  setInterval(logSystemMetrics, 60000); // Every minute
+}
+
+// Export logger and utilities
 module.exports = {
   logger,
-  logPerformance,
-  logApiRequest,
   logError,
-  logVectorOperation,
-  logMemoryUsage
+  logPerformance,
+  logWorkflow,
+  logAgent,
+  logMemory,
+  logVector,
+  createRequestLogger,
+  createTimer,
+  logSystemMetrics,
+  PerformanceTimer,
+  
+  // Convenience methods
+  error: (message, meta) => logger.error(message, meta),
+  warn: (message, meta) => logger.warn(message, meta),
+  info: (message, meta) => logger.info(message, meta),
+  debug: (message, meta) => logger.debug(message, meta),
+  trace: (message, meta) => logger.trace(message, meta)
 };

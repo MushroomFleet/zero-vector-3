@@ -1,72 +1,55 @@
 const express = require('express');
-const helmet = require('helmet');
 const cors = require('cors');
-const path = require('path');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+const { v4: uuidv4 } = require('uuid');
 
+// Import configuration and utilities
 const config = require('./config');
-const { logger, logApiRequest, logError } = require('./utils/logger');
-const DatabaseRepository = require('./repositories/database');
-const HybridVectorStore = require('./services/HybridVectorStore');
+const { logger, logError, createRequestLogger, createTimer } = require('./utils/logger');
 
-// Import services
-const UserService = require('./services/userService');
-const ApiKeyService = require('./services/apiKeyService');
-const JwtService = require('./services/jwtService');
+// Import core services (these would be implemented to work with existing zero-vector-2 components)
+const { ZeroVectorStateManager } = require('./state/ZeroVectorState');
 
-// Import middleware
-const performanceMiddleware = require('./middleware/performance');
-const { errorHandler } = require('./middleware/errorHandler');
-const { globalRateLimiter } = require('./middleware/rateLimiting');
-const authenticateApiKey = require('./middleware/authenticateApiKey');
-const authenticateJWT = require('./middleware/authenticateJWT');
-
-// Import routes
-const vectorRoutes = require('./routes/vectors');
-const embeddingRoutes = require('./routes/embeddings');
-const personaRoutes = require('./routes/personas');
-const healthRoutes = require('./routes/health');
-const createAuthRoutes = require('./routes/auth');
-
-// Import memory management services
-const EmbeddingService = require('./services/embedding/EmbeddingService');
-const LocalTransformersProvider = require('./services/embedding/LocalTransformersProvider');
-const OpenAIProvider = require('./services/embedding/OpenAIProvider');
-const HybridPersonaMemoryManager = require('./services/HybridPersonaMemoryManager');
+// Import LangGraph components
+const ZeroVectorGraph = require('./graphs/ZeroVectorGraph');
+const HybridRetrievalAgent = require('./agents/HybridRetrievalAgent');
+const PersonaMemoryAgent = require('./agents/PersonaMemoryAgent');
+const LangChainVectorStoreAdapter = require('./services/LangChainVectorStoreAdapter');
 
 /**
- * Zero-Vector Server
- * Main application entry point
+ * Zero-Vector-3 Server
+ * Enhanced AI persona memory system with LangGraph integration
  */
-class ZeroVectorServer {
+class ZeroVector3Server {
   constructor() {
     this.app = express();
     this.server = null;
-    this.database = null;
-    this.vectorStore = null;
-    this.userService = null;
-    this.apiKeyService = null;
-    this.jwtService = null;
-    this.isShuttingDown = false;
+    this.graph = null;
+    this.components = {};
+    this.isInitialized = false;
   }
 
   /**
-   * Initialize the server
+   * Initialize the server and all components
    */
   async initialize() {
     try {
-      logger.info('Initializing Zero-Vector Server...');
+      logger.info('Initializing Zero-Vector-3 server...', {
+        nodeEnv: config.server.nodeEnv,
+        port: config.server.port,
+        langGraphEnabled: config.langGraph.tracingEnabled
+      });
 
-      // Initialize database
-      await this.initializeDatabase();
-
-      // Initialize authentication services
-      await this.initializeAuthServices();
-
-      // Initialize vector store
-      await this.initializeVectorStore();
-
-      // Setup middleware
+      // Setup Express middleware
       this.setupMiddleware();
+
+      // Initialize core services (placeholder - would integrate with existing zero-vector-2)
+      await this.initializeCoreServices();
+
+      // Initialize LangGraph components
+      await this.initializeLangGraphComponents();
 
       // Setup routes
       this.setupRoutes();
@@ -74,170 +57,15 @@ class ZeroVectorServer {
       // Setup error handling
       this.setupErrorHandling();
 
-      // Setup graceful shutdown
-      this.setupGracefulShutdown();
-
-      logger.info('Zero-Vector Server initialized successfully');
+      this.isInitialized = true;
+      logger.info('Zero-Vector-3 server initialized successfully');
 
     } catch (error) {
-      logError(error, { operation: 'server_initialization' });
+      logError(error, {
+        operation: 'serverInitialization',
+        stage: 'initialization'
+      });
       throw error;
-    }
-  }
-
-  /**
-   * Initialize database connection
-   */
-  async initializeDatabase() {
-    this.database = new DatabaseRepository();
-    await this.database.initialize();
-    
-    // Make database available to routes via app context
-    this.app.set('database', this.database);
-    
-    logger.info('Database initialized successfully');
-  }
-
-  /**
-   * Initialize authentication services
-   */
-  async initializeAuthServices() {
-    // Initialize JWT service
-    this.jwtService = new JwtService();
-
-    // Initialize user service
-    this.userService = new UserService(this.database);
-
-    // Initialize API key service
-    this.apiKeyService = new ApiKeyService(this.database);
-
-    // Make auth services available to routes via app context
-    this.app.set('userService', this.userService);
-    this.app.set('apiKeyService', this.apiKeyService);
-    this.app.set('jwtService', this.jwtService);
-
-    logger.info('Authentication services initialized successfully');
-  }
-
-  /**
-   * Initialize vector store
-   */
-  async initializeVectorStore() {
-    // Initialize embedding service first
-    const embeddingService = new EmbeddingService();
-    
-    // Register the local transformer provider
-    const localProvider = new LocalTransformersProvider();
-    embeddingService.registerProvider('local', localProvider);
-    
-    // Register the OpenAI provider if API key is available
-    if (config.embeddings.openaiApiKey) {
-      try {
-        const openaiProvider = new OpenAIProvider({
-          apiKey: config.embeddings.openaiApiKey,
-          model: config.embeddings.model
-        });
-        embeddingService.registerProvider('openai', openaiProvider);
-        logger.info('OpenAI provider registered successfully');
-      } catch (error) {
-        logger.warn('Failed to register OpenAI provider', { error: error.message });
-      }
-    } else {
-      logger.info('OpenAI API key not found, skipping OpenAI provider registration');
-    }
-    
-    // Set default provider based on configuration
-    const defaultProvider = config.embeddings.provider || 'local';
-    embeddingService.setDefaultProvider(defaultProvider);
-    
-    // Store embedding service for use in other parts of the app
-    this.embeddingService = embeddingService;
-    this.app.set('embeddingService', embeddingService);
-
-    // Initialize hybrid vector store
-    this.vectorStore = new HybridVectorStore(
-      config.vectorDb.maxMemoryMB,
-      config.vectorDb.defaultDimensions,
-      {
-        M: 16,
-        efConstruction: 200,
-        efSearch: 50,
-        distanceFunction: 'cosine',
-        indexThreshold: 100
-      },
-      this.database,
-      embeddingService
-    );
-
-    // Make vector store available to routes via app context
-    this.app.set('vectorStore', this.vectorStore);
-
-    logger.info('Hybrid vector store initialized successfully', {
-      graphEnabled: this.vectorStore.graphEnabled,
-      entityExtractionEnabled: this.vectorStore.entityExtractionEnabled
-    });
-
-    // Reload existing memories from database
-    await this.reloadExistingMemories();
-  }
-
-  /**
-   * Reload existing memories from database into vector store
-   * This ensures memories persist across server restarts
-   */
-  async reloadExistingMemories() {
-    try {
-      logger.info('Checking for existing memories to reload...');
-
-      // Initialize embedding service with proper providers
-      const embeddingService = new EmbeddingService();
-      
-      // Register the local transformer provider
-      const localProvider = new LocalTransformersProvider();
-      embeddingService.registerProvider('local', localProvider);
-      
-      // Register the OpenAI provider if API key is available
-      if (config.embeddings.openaiApiKey) {
-        try {
-          const openaiProvider = new OpenAIProvider({
-            apiKey: config.embeddings.openaiApiKey,
-            model: config.embeddings.model
-          });
-          embeddingService.registerProvider('openai', openaiProvider);
-          logger.info('OpenAI provider registered for memory reload');
-        } catch (error) {
-          logger.warn('Failed to register OpenAI provider for reload', { error: error.message });
-        }
-      }
-      
-      // Set default provider based on configuration
-      const defaultProvider = config.embeddings.provider || 'local';
-      embeddingService.setDefaultProvider(defaultProvider);
-      
-      // Initialize hybrid persona memory manager for reload functionality
-      const memoryManager = new HybridPersonaMemoryManager(
-        this.database,
-        this.vectorStore,
-        embeddingService
-      );
-
-      // Reload memories from database
-      const reloadResult = await memoryManager.reloadMemoriesFromDatabase();
-
-      if (reloadResult.reloaded > 0) {
-        logger.info('Memory reload completed successfully', {
-          reloaded: reloadResult.reloaded,
-          errors: reloadResult.errors,
-          vectorStoreCount: this.vectorStore.vectorCount
-        });
-      } else {
-        logger.info('No existing memories found to reload');
-      }
-
-    } catch (error) {
-      // Log error but don't fail server startup
-      logError(error, { operation: 'reloadExistingMemories' });
-      logger.warn('Memory reload failed, but server will continue with empty vector store');
     }
   }
 
@@ -245,158 +73,362 @@ class ZeroVectorServer {
    * Setup Express middleware
    */
   setupMiddleware() {
+    // Request ID middleware
+    this.app.use((req, res, next) => {
+      req.id = uuidv4();
+      next();
+    });
+
     // Security middleware
-    this.app.use(helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", "data:", "https:"]
-        }
-      },
-      crossOriginEmbedderPolicy: false
-    }));
+    if (config.security.helmet.enabled) {
+      this.app.use(helmet({
+        contentSecurityPolicy: config.security.helmet.contentSecurityPolicy,
+        crossOriginEmbedderPolicy: config.security.helmet.crossOriginEmbedderPolicy
+      }));
+    }
 
-    // CORS middleware
+    // CORS
     this.app.use(cors({
-      origin: config.server.nodeEnv === 'production' 
-        ? ['https://yourdomain.com'] // Update in production
-        : true,
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+      origin: config.security.corsOrigin,
+      credentials: true
     }));
 
-    // Body parsing middleware
-    this.app.use(express.json({ 
-      limit: '50mb',
-      verify: (req, res, buf) => {
-        req.rawBody = buf;
-      }
-    }));
-    this.app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+    // Compression
+    this.app.use(compression());
 
-    // Performance monitoring middleware
-    this.app.use(performanceMiddleware);
+    // Rate limiting
+    const limiter = rateLimit({
+      windowMs: config.security.rateLimiting.windowMs,
+      max: config.security.rateLimiting.maxRequests,
+      standardHeaders: true,
+      legacyHeaders: false,
+      skipSuccessfulRequests: config.security.rateLimiting.skipSuccessfulRequests,
+      skipFailedRequests: config.security.rateLimiting.skipFailedRequests
+    });
+    this.app.use('/api/', limiter);
 
-    // Request logging middleware
-    this.app.use((req, res, next) => {
-      const startTime = Date.now();
+    // Body parsing
+    this.app.use(express.json({ limit: '10mb' }));
+    this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+    // Request logging
+    this.app.use(createRequestLogger());
+
+    logger.info('Express middleware configured');
+  }
+
+  /**
+   * Initialize core services (placeholder for zero-vector-2 integration)
+   */
+  async initializeCoreServices() {
+    try {
+      // Note: These would be actual implementations that integrate with zero-vector-2
+      // For now, creating placeholder implementations
       
-      res.on('finish', () => {
-        const duration = Date.now() - startTime;
-        logApiRequest(req, res, duration);
+      logger.info('Initializing core services...');
+
+      // Initialize hybrid vector store (would use existing zero-vector-2 implementation)
+      this.components.hybridVectorStore = await this.createMockHybridVectorStore();
+
+      // Initialize embedding service (would use existing zero-vector-2 implementation)
+      this.components.embeddingService = await this.createMockEmbeddingService();
+
+      // Initialize memory manager (would use existing zero-vector-2 implementation)
+      this.components.hybridMemoryManager = await this.createMockMemoryManager();
+
+      // Initialize graph service (would use existing zero-vector-2 implementation)
+      this.components.graphService = await this.createMockGraphService();
+
+      // Initialize LLM service (optional)
+      this.components.llmService = await this.createMockLLMService();
+
+      logger.info('Core services initialized successfully');
+
+    } catch (error) {
+      logError(error, {
+        operation: 'initializeCoreServices'
       });
-      
-      next();
-    });
+      throw error;
+    }
+  }
 
-    // Add server context to requests
-    this.app.use((req, res, next) => {
-      req.vectorStore = this.vectorStore;
-      req.database = this.database;
-      req.userService = this.userService;
-      req.apiKeyService = this.apiKeyService;
-      req.jwtService = this.jwtService;
-      next();
-    });
+  /**
+   * Initialize LangGraph components
+   */
+  async initializeLangGraphComponents() {
+    try {
+      logger.info('Initializing LangGraph components...');
 
-    logger.info('Middleware setup completed');
+      // Create LangChain vector store adapter
+      this.components.langChainAdapter = new LangChainVectorStoreAdapter(
+        this.components.hybridVectorStore,
+        this.components.embeddingService
+      );
+
+      // Create agents
+      this.components.hybridRetrievalAgent = new HybridRetrievalAgent(
+        this.components.hybridVectorStore,
+        this.components.embeddingService,
+        this.components.graphService
+      );
+
+      this.components.personaMemoryAgent = new PersonaMemoryAgent(
+        this.components.hybridMemoryManager,
+        this.components.embeddingService,
+        this.components.llmService
+      );
+
+      // Create checkpointer (would use PostgreSQL in production)
+      this.components.checkpointer = await this.createMockCheckpointer();
+
+      // Create main workflow graph
+      this.components.zeroVectorGraph = new ZeroVectorGraph({
+        hybridRetrievalAgent: this.components.hybridRetrievalAgent,
+        personaMemoryAgent: this.components.personaMemoryAgent,
+        reasoningAgent: null, // Optional - could be added later
+        approvalAgent: null, // Optional - could be added later
+        checkpointer: this.components.checkpointer,
+        config: config
+      });
+
+      // Compile the graph
+      this.graph = this.components.zeroVectorGraph.createGraph();
+
+      logger.info('LangGraph components initialized successfully', {
+        graphCompiled: !!this.graph,
+        agentCount: 2,
+        checkpointerEnabled: !!this.components.checkpointer
+      });
+
+    } catch (error) {
+      logError(error, {
+        operation: 'initializeLangGraphComponents'
+      });
+      throw error;
+    }
   }
 
   /**
    * Setup API routes
    */
   setupRoutes() {
-    // Apply global rate limiting to all routes except health
-    this.app.use('/api', globalRateLimiter);
+    // Import route modules
+    const langGraphRoutes = require('./routes/langgraph');
 
-    // Health check routes (no auth required)
-    this.app.use('/health', healthRoutes);
-
-    // Authentication routes
-    const authRoutes = createAuthRoutes(this.userService, this.jwtService, this.apiKeyService);
-    this.app.use('/auth', authRoutes);
-
-    // Protected API routes
-    this.app.use('/api/vectors', vectorRoutes);
-    this.app.use('/api/embeddings', embeddingRoutes);
-    this.app.use('/api/personas', authenticateApiKey(this.apiKeyService), personaRoutes);
-
-    // Root endpoint
-    this.app.get('/', (req, res) => {
+    // Health check
+    this.app.get('/health', (req, res) => {
       res.json({
-        name: 'Zero-Vector Server',
-        version: '1.0.0',
-        status: 'running',
+        status: 'healthy',
         timestamp: new Date().toISOString(),
-        endpoints: {
-          health: '/health',
-          auth: '/auth',
-          vectors: '/api/vectors'
+        version: '3.0.0',
+        services: {
+          langGraph: !!this.graph,
+          vectorStore: !!this.components.hybridVectorStore,
+          embeddingService: !!this.components.embeddingService,
+          memoryManager: !!this.components.hybridMemoryManager
         }
       });
     });
 
-    // 404 handler
-    this.app.use('*', (req, res) => {
-      res.status(404).json({
-        error: 'Not Found',
-        message: `Route ${req.method} ${req.originalUrl} not found`,
-        availableEndpoints: [
-          'GET /',
-          'GET /health',
-          'POST /auth/register',
-          'POST /auth/login',
-          'POST /api/vectors',
-          'GET /api/vectors/search'
-        ]
-      });
+    // Register LangGraph workflow routes
+    this.app.use('/api/v3/langgraph', langGraphRoutes);
+
+    // Main chat endpoint with LangGraph workflow
+    this.app.post('/api/chat', async (req, res) => {
+      const timer = createTimer('chat_request', { requestId: req.id });
+      
+      try {
+        const { message, persona, userId, conversationId } = req.body;
+
+        if (!message) {
+          return res.status(400).json({
+            error: 'Message is required',
+            code: 'MISSING_MESSAGE'
+          });
+        }
+
+        if (!userId) {
+          return res.status(400).json({
+            error: 'User ID is required',
+            code: 'MISSING_USER_ID'
+          });
+        }
+
+        logger.info('Processing chat request', {
+          requestId: req.id,
+          userId,
+          persona: persona || 'default',
+          messageLength: message.length,
+          conversationId
+        });
+
+        // Create initial state
+        const initialState = ZeroVectorStateManager.createState({
+          messages: [{
+            type: 'human',
+            content: message,
+            id: uuidv4(),
+            timestamp: Date.now()
+          }],
+          user_profile: {
+            id: userId,
+            authenticated: true
+          },
+          active_persona: persona || 'helpful_assistant',
+          session_id: req.id,
+          conversation_id: conversationId || uuidv4(),
+          request_id: req.id
+        });
+
+        // Execute workflow
+        const result = await this.graph.invoke(initialState, {
+          configurable: {
+            thread_id: conversationId || uuidv4(),
+            user_id: userId
+          }
+        });
+
+        // Extract response
+        const aiMessages = result.messages?.filter(m => m.type === 'ai') || [];
+        const latestResponse = aiMessages[aiMessages.length - 1];
+
+        if (!latestResponse) {
+          throw new Error('No response generated from workflow');
+        }
+
+        const perfData = timer.end({
+          messageCount: result.messages?.length || 0,
+          vectorResults: result.vector_results?.length || 0,
+          workflowSteps: result.execution_metadata?.step_count || 0
+        });
+
+        res.json({
+          response: latestResponse.content,
+          metadata: {
+            persona: result.active_persona,
+            processingTime: perfData.duration,
+            vectorResults: result.vector_results?.length || 0,
+            memoryContext: result.memory_context,
+            workflowContext: {
+              steps: result.workflow_context?.completed_steps || [],
+              executionTime: result.execution_metadata?.execution_time_ms
+            }
+          },
+          conversationId: result.conversation_id,
+          requestId: req.id
+        });
+
+      } catch (error) {
+        timer.end({ error: true });
+        logError(error, {
+          operation: 'chatRequest',
+          requestId: req.id,
+          userId: req.body?.userId
+        });
+
+        res.status(500).json({
+          error: 'Failed to process chat request',
+          code: 'CHAT_PROCESSING_ERROR',
+          requestId: req.id
+        });
+      }
     });
 
-    logger.info('Routes setup completed');
+    // Get conversation history
+    this.app.get('/api/conversations/:conversationId', async (req, res) => {
+      try {
+        const { conversationId } = req.params;
+        
+        // This would retrieve from checkpointer/database
+        // For now, returning placeholder
+        res.json({
+          conversationId,
+          messages: [],
+          metadata: {
+            created: new Date().toISOString(),
+            lastUpdate: new Date().toISOString()
+          }
+        });
+
+      } catch (error) {
+        logError(error, {
+          operation: 'getConversation',
+          conversationId: req.params.conversationId
+        });
+
+        res.status(500).json({
+          error: 'Failed to retrieve conversation',
+          code: 'CONVERSATION_RETRIEVAL_ERROR'
+        });
+      }
+    });
+
+    // Get system statistics
+    this.app.get('/api/stats', async (req, res) => {
+      try {
+        const stats = {
+          system: {
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            nodeVersion: process.version
+          },
+          agents: {
+            hybridRetrieval: this.components.hybridRetrievalAgent?.getPerformanceStats?.() || {},
+            personaMemory: this.components.personaMemoryAgent?.getPerformanceStats?.() || {}
+          },
+          services: {
+            vectorStore: this.components.hybridVectorStore?.getStats?.() || {},
+            langChain: this.components.langChainAdapter?.getStats?.() || {}
+          }
+        };
+
+        res.json(stats);
+
+      } catch (error) {
+        logError(error, {
+          operation: 'getStats'
+        });
+
+        res.status(500).json({
+          error: 'Failed to retrieve statistics',
+          code: 'STATS_RETRIEVAL_ERROR'
+        });
+      }
+    });
+
+    logger.info('API routes configured');
   }
 
   /**
    * Setup error handling
    */
   setupErrorHandling() {
-    // Global error handler
-    this.app.use(errorHandler);
-
-    // Handle uncaught exceptions
-    process.on('uncaughtException', (error) => {
-      logError(error, { event: 'uncaught_exception' });
-      
-      if (!this.isShuttingDown) {
-        this.gracefulShutdown('UNCAUGHT_EXCEPTION');
-      }
-    });
-
-    // Handle unhandled promise rejections
-    process.on('unhandledRejection', (reason, promise) => {
-      logError(new Error(`Unhandled Rejection: ${reason}`), { 
-        event: 'unhandled_rejection',
-        promise: promise.toString()
+    // 404 handler
+    this.app.use((req, res) => {
+      res.status(404).json({
+        error: 'Endpoint not found',
+        code: 'NOT_FOUND',
+        path: req.path
       });
     });
 
-    logger.info('Error handling setup completed');
-  }
+    // Global error handler
+    this.app.use((error, req, res, next) => {
+      logError(error, {
+        operation: 'expressErrorHandler',
+        requestId: req.id,
+        url: req.url,
+        method: req.method
+      });
 
-  /**
-   * Setup graceful shutdown handlers
-   */
-  setupGracefulShutdown() {
-    const shutdown = (signal) => {
-      logger.info(`Received ${signal}, starting graceful shutdown...`);
-      this.gracefulShutdown(signal);
-    };
+      res.status(500).json({
+        error: 'Internal server error',
+        code: 'INTERNAL_ERROR',
+        requestId: req.id
+      });
+    });
 
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-    process.on('SIGINT', () => shutdown('SIGINT'));
-    process.on('SIGUSR2', () => shutdown('SIGUSR2')); // nodemon restart
+    logger.info('Error handling configured');
   }
 
   /**
@@ -404,124 +436,160 @@ class ZeroVectorServer {
    */
   async start() {
     try {
-      await this.initialize();
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
 
       this.server = this.app.listen(config.server.port, config.server.host, () => {
-        logger.info(`Zero-Vector Server running on ${config.server.host}:${config.server.port}`);
-        logger.info(`Environment: ${config.server.nodeEnv}`);
-        logger.info(`Vector Store: ${config.vectorDb.maxMemoryMB}MB, ${config.vectorDb.defaultDimensions}D`);
-        logger.info(`Database: ${config.database.path}`);
+        logger.info('Zero-Vector-3 server started successfully', {
+          host: config.server.host,
+          port: config.server.port,
+          nodeEnv: config.server.nodeEnv,
+          pid: process.pid
+        });
       });
 
-      // Handle server errors
-      this.server.on('error', (error) => {
-        if (error.syscall !== 'listen') {
-          throw error;
-        }
-
-        const bind = typeof config.server.port === 'string'
-          ? 'Pipe ' + config.server.port
-          : 'Port ' + config.server.port;
-
-        switch (error.code) {
-          case 'EACCES':
-            logError(new Error(`${bind} requires elevated privileges`));
-            process.exit(1);
-            break;
-          case 'EADDRINUSE':
-            logError(new Error(`${bind} is already in use`));
-            process.exit(1);
-            break;
-          default:
-            throw error;
-        }
-      });
-
-      return this.server;
+      // Graceful shutdown handling
+      this.setupGracefulShutdown();
 
     } catch (error) {
-      logError(error, { operation: 'server_start' });
+      logError(error, {
+        operation: 'serverStart'
+      });
       throw error;
     }
   }
 
   /**
-   * Graceful shutdown
+   * Setup graceful shutdown
    */
-  async gracefulShutdown(signal) {
-    if (this.isShuttingDown) {
-      return;
-    }
+  setupGracefulShutdown() {
+    const shutdown = async (signal) => {
+      logger.info(`Received ${signal}, starting graceful shutdown...`);
 
-    this.isShuttingDown = true;
-    logger.info(`Graceful shutdown initiated by ${signal}`);
-
-    try {
-      // Stop accepting new connections
       if (this.server) {
         this.server.close(() => {
           logger.info('HTTP server closed');
+          process.exit(0);
         });
+
+        // Force close after 30 seconds
+        setTimeout(() => {
+          logger.error('Forcing server close after timeout');
+          process.exit(1);
+        }, 30000);
       }
+    };
 
-      // Close database connection
-      if (this.database) {
-        await this.database.close();
-        logger.info('Database connection closed');
-      }
-
-      // Cleanup vector store
-      if (this.vectorStore) {
-        this.vectorStore.cleanup();
-        logger.info('Vector store cleaned up');
-      }
-
-      logger.info('Graceful shutdown completed');
-      process.exit(0);
-
-    } catch (error) {
-      logError(error, { operation: 'graceful_shutdown' });
-      process.exit(1);
-    }
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
   }
 
   /**
-   * Get server statistics
+   * Mock implementations (would be replaced with actual zero-vector-2 integrations)
    */
-  getStats() {
-    const memUsage = process.memoryUsage();
-    const uptime = process.uptime();
-
+  async createMockHybridVectorStore() {
     return {
-      server: {
-        uptime: uptime,
-        memoryUsage: {
-          rss: Math.round(memUsage.rss / 1024 / 1024), // MB
-          heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
-          heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
-          external: Math.round(memUsage.external / 1024 / 1024) // MB
-        },
-        platform: process.platform,
-        nodeVersion: process.version
+      search: async (embedding, options) => {
+        logger.debug('Mock hybrid vector store search', { optionsLimit: options.limit });
+        return [];
       },
-      vectorStore: this.vectorStore ? this.vectorStore.getStats() : null,
-      config: {
-        maxMemoryMB: config.vectorDb.maxMemoryMB,
-        defaultDimensions: config.vectorDb.defaultDimensions,
-        indexType: config.vectorDb.indexType,
-        distanceMetric: config.vectorDb.distanceMetric
+      addVector: async (content, embedding, metadata) => {
+        logger.debug('Mock add vector', { contentLength: content.length });
+        return { id: uuidv4() };
+      },
+      deleteVector: async (id) => {
+        logger.debug('Mock delete vector', { id });
+        return true;
+      },
+      hybridSearch: async (embedding, options) => {
+        logger.debug('Mock hybrid search', { optionsLimit: options.limit });
+        return [];
+      },
+      findRelatedEntities: async (entityId, options) => {
+        logger.debug('Mock find related entities', { entityId });
+        return [];
+      },
+      getStats: () => ({
+        vectorCount: 0,
+        indexedCount: 0,
+        graphEnabled: true
+      }),
+      graphEnabled: true,
+      entityExtractionEnabled: true
+    };
+  }
+
+  async createMockEmbeddingService() {
+    return {
+      generateEmbedding: async (text, options) => {
+        logger.debug('Mock generate embedding', { textLength: text.length });
+        return {
+          vector: new Array(1536).fill(0).map(() => Math.random()),
+          cached: false
+        };
+      },
+      defaultProvider: 'openai'
+    };
+  }
+
+  async createMockMemoryManager() {
+    return {
+      retrieveRelevantMemories: async (personaId, query, options) => {
+        logger.debug('Mock retrieve memories', { personaId, queryLength: query.length });
+        return [];
+      },
+      addMemory: async (personaId, content, metadata) => {
+        logger.debug('Mock add memory', { personaId, contentLength: content.length });
+        return { id: uuidv4() };
+      },
+      database: null
+    };
+  }
+
+  async createMockGraphService() {
+    return {
+      query: async (cypher, params) => {
+        logger.debug('Mock graph query', { cypher: cypher.substring(0, 50) });
+        return [];
+      }
+    };
+  }
+
+  async createMockLLMService() {
+    return {
+      generateResponse: async (prompt, options) => {
+        logger.debug('Mock LLM generation', { promptLength: prompt.length });
+        return "I'm a mock response. In a real implementation, this would use an actual LLM service.";
+      }
+    };
+  }
+
+  async createMockCheckpointer() {
+    // In production, this would be a PostgreSQL or Redis checkpointer
+    return {
+      put: async (config, checkpoint) => {
+        logger.debug('Mock checkpointer put', { config });
+      },
+      get: async (config) => {
+        logger.debug('Mock checkpointer get', { config });
+        return null;
+      },
+      list: async (config) => {
+        logger.debug('Mock checkpointer list', { config });
+        return [];
       }
     };
   }
 }
 
 // Create and export server instance
-const server = new ZeroVectorServer();
+const server = new ZeroVector3Server();
 
 // Start server if this file is run directly
 if (require.main === module) {
   server.start().catch((error) => {
-    logError(error, { operation: 'server_startup' });
+    logger.error('Failed to start server', error);
     process.exit(1);
   });
 }

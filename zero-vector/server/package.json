@@ -1,7 +1,7 @@
 {
-  "name": "zero-vector-server",
-  "version": "1.0.0",
-  "description": "Standalone vector database server with AI persona memory management",
+  "name": "zero-vector-3-server",
+  "version": "3.0.0",
+  "description": "Zero-Vector-3: AI persona memory management with LangChain and LangGraph integration",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -12,14 +12,21 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "setup:database": "node scripts/setup-database.js",
+    "setup:postgres": "node scripts/setup-database.js",
+    "setup:infrastructure": "node scripts/setup-infrastructure.js",
+    "migrate:langgraph": "node scripts/migrate-langgraph.js",
     "generate:api-key": "node scripts/generate-api-key.js",
-    "generate:mcp-key": "node scripts/generate-api-key.js --name \"Zero-Vector MCP Key\" --permissions \"read,write,vectors:read,vectors:write,personas:read,personas:write\" --rate-limit 2000 --expires-in-days 365"
+    "generate:mcp-key": "node scripts/generate-api-key.js --name \"Zero-Vector-3 MCP Key\" --permissions \"read,write,vectors:read,vectors:write,personas:read,personas:write,workflows:read,workflows:write\" --rate-limit 5000 --expires-in-days 365"
   },
   "keywords": [
     "vector-database",
     "ai",
     "embeddings",
     "similarity-search",
+    "langchain",
+    "langgraph", 
+    "agent-orchestration",
+    "persona-memory",
     "nodejs"
   ],
   "author": "Zero-Vector Team",
@@ -41,7 +48,14 @@
     "redis": "^4.6.12",
     "rate-limit-redis": "^4.2.0",
     "validator": "^13.11.0",
-    "cookie-parser": "^1.4.6"
+    "cookie-parser": "^1.4.6",
+    "langchain": "^0.3.29",
+    "@langchain/core": "^0.3.60",
+    "@langchain/community": "^0.3.47",
+    "@langchain/openai": "^0.5.14",
+    "pg": "^8.11.3",
+    "ioredis": "^5.3.2",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
@@ -49,7 +63,8 @@
     "eslint": "^8.55.0",
     "eslint-config-standard": "^17.1.0",
     "supertest": "^6.3.3",
-    "@types/jest": "^29.5.8"
+    "@types/jest": "^29.5.8",
+    "@types/pg": "^8.10.9"
   },
   "engines": {
     "node": ">=18.0.0"
