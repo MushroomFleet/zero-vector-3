@@ -167,3 +167,38 @@ export function validateUUID(id, fieldName = 'id') {
 
   return { valid: true };
 }
+
+/**
+ * Validate required fields are present
+ */
+export function validateRequired(input, requiredFields) {
+  const missing = [];
+  
+  for (const field of requiredFields) {
+    if (input[field] === undefined || input[field] === null || input[field] === '') {
+      missing.push(field);
+    }
+  }
+  
+  return {
+    valid: missing.length === 0,
+    missing
+  };
+}
+
+/**
+ * Sanitize input to prevent XSS and injection attacks
+ */
+export function sanitizeInput(input) {
+  if (typeof input !== 'string') {
+    return input;
+  }
+  
+  // Basic sanitization - remove potential script tags and dangerous characters
+  return input
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '') // Remove event handlers
+    .trim();
+}

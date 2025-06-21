@@ -1,6 +1,6 @@
 import config from '../config.js';
 import { makeRequest } from '../apiClient.js';
-import { validateRequired, sanitizeInput } from '../utils/validation.js';
+import { validateRequired, sanitizeInput, validateInput } from '../utils/validation.js';
 
 /**
  * LangGraph Workflow Tools for Zero-Vector-3
