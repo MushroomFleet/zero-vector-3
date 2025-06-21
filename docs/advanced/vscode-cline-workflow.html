@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSCode Cline Workflow Development - Zero-Vector-3</title>
+    <meta name="description" content="Advanced developer guide for implementing VSCode Cline workflows with Zero-Vector-3">
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+    <nav class="nav-header">
+        <div class="container">
+            <div class="nav-content">
+                <a href="../index.html" class="nav-brand">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Tutorials
+                </a>
+                <div class="nav-links">
+                    <a href="../index.html#lessons">All Lessons</a>
+                    <a href="../index.html#advanced">Advanced</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="lesson-container">
+        <header class="lesson-header">
+            <div class="container">
+                <div class="breadcrumb">
+                    <a href="../index.html">Tutorials</a>
+                    <span>/</span>
+                    <a href="../index.html#advanced">Advanced</a>
+                    <span>/</span>
+                    <span>VSCode Cline Workflow</span>
+                </div>
+                <h1><i class="fas fa-code"></i> VSCode Cline Workflow Development</h1>
+                <p class="lesson-subtitle">Advanced developer guide for implementing sophisticated AI workflows in VSCode with Cline</p>
+                <div class="lesson-meta-info">
+                    <span class="difficulty advanced"><i class="fas fa-star"></i> Advanced</span>
+                    <span class="duration"><i class="fas fa-clock"></i> 45-60 minutes</span>
+                    <span class="type"><i class="fas fa-tools"></i> Development</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="lesson-content">
+            <div class="container">
+                <aside class="lesson-sidebar">
+                    <div class="toc">
+                        <h4><i class="fas fa-list"></i> Table of Contents</h4>
+                        <ul>
+                            <li><a href="#overview">Overview</a></li>
+                            <li><a href="#architecture">Workflow Architecture</a></li>
+                            <li><a href="#implementation">Implementation Guide</a></li>
+                            <li><a href="#integration">MCP Integration</a></li>
+                            <li><a href="#customization">Customization</a></li>
+                            <li><a href="#debugging">Debugging & Testing</a></li>
+                            <li><a href="#deployment">Deployment</a></li>
+                            <li><a href="#best-practices">Best Practices</a></li>
+                        </ul>
+                    </div>
+                    <div class="lesson-progress">
+                        <h4><i class="fas fa-tasks"></i> Progress</h4>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <span class="progress-text">0% Complete</span>
+                    </div>
+                </aside>
+
+                <article class="lesson-main">
+                    <section id="overview" class="content-section">
+                        <h2><i class="fas fa-info-circle"></i> Overview</h2>
+                        <div class="highlight-box info">
+                            <p><strong>Target Audience:</strong> Developers building AI-powered extensions and workflows for VSCode using the Cline framework with Zero-Vector-3 integration.</p>
+                        </div>
+
+                        <h3>What You'll Build</h3>
+                        <p>This advanced guide covers the development of sophisticated AI workflows that integrate with VSCode through Cline, leveraging Zero-Vector-3's capabilities for:</p>
+                        
+                        <ul class="feature-list">
+                            <li><i class="fas fa-brain"></i> <strong>Intelligent Code Analysis:</strong> Context-aware code understanding and suggestions</li>
+                            <li><i class="fas fa-memory"></i> <strong>Persistent Memory:</strong> Long-term project knowledge retention</li>
+                            <li><i class="fas fa-users"></i> <strong>Multi-Persona Coordination:</strong> Specialized AI assistants for different development tasks</li>
+                            <li><i class="fas fa-workflow"></i> <strong>Complex Workflow Orchestration:</strong> Multi-step reasoning and approval processes</li>
+                        </ul>
+
+                        <h3>Prerequisites</h3>
+                        <div class="prerequisites">
+                            <div class="prereq-grid">
+                                <div class="prereq-item">
+                                    <i class="fab fa-node-js"></i>
+                                    <h4>Node.js Development</h4>
+                                    <p>Proficiency in Node.js, npm, and modern JavaScript/TypeScript</p>
+                                </div>
+                                <div class="prereq-item">
+                                    <i class="fas fa-code"></i>
+                                    <h4>VSCode Extensions</h4>
+                                    <p>Experience with VSCode extension development and APIs</p>
+                                </div>
+                                <div class="prereq-item">
+                                    <i class="fas fa-robot"></i>
+                                    <h4>Zero-Vector-3</h4>
+                                    <p>Familiarity with Zero-Vector-3 basic concepts and MCP</p>
+                                </div>
+                                <div class="prereq-item">
+                                    <i class="fas fa-database"></i>
+                                    <h4>AI/ML Concepts</h4>
+                                    <p>Understanding of embeddings, vector databases, and AI workflows</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="architecture" class="content-section">
+                        <h2><i class="fas fa-sitemap"></i> Workflow Architecture</h2>
+                        
+                        <h3>System Overview</h3>
+                        <div class="architecture-diagram">
+                            <pre><code class="language-mermaid">
+graph TB
+    subgraph "VSCode Environment"
+        A[Cline Extension] --> B[Workflow Manager]
+        B --> C[MCP Client]
+    end
+    
+    subgraph "Zero-Vector-3 System"
+        C --> D[MCP Server]
+        D --> E[Workflow Engine]
+        E --> F[Persona Manager]
+        E --> G[Memory System]
+        E --> H[LangGraph Orchestrator]
+    end
+    
+    subgraph "AI Services"
+        H --> I[OpenAI API]
+        H --> J[Local Transformers]
+        G --> K[Vector Database]
+        G --> L[Knowledge Graph]
+    end
+    
+    style A fill:#e1f5fe
+    style E fill:#f3e5f5
+    style K fill:#e8f5e8
+    style L fill:#fff3e0
+            </code></pre>
+        </div>
+
+                        <h3>Core Components</h3>
+                        <div class="component-grid">
+                            <div class="component-card">
+                                <i class="fas fa-cog"></i>
+                                <h4>Workflow Manager</h4>
+                                <p>Orchestrates workflow execution, state management, and result handling within the VSCode environment.</p>
+                            </div>
+                            <div class="component-card">
+                                <i class="fas fa-plug"></i>
+                                <h4>MCP Client</h4>
+                                <p>Model Context Protocol client for communication with Zero-Vector-3 services and tools.</p>
+                            </div>
+                            <div class="component-card">
+                                <i class="fas fa-brain"></i>
+                                <h4>Context Analyzer</h4>
+                                <p>Analyzes VSCode context (open files, cursor position, selections) for intelligent workflow triggers.</p>
+                            </div>
+                            <div class="component-card">
+                                <i class="fas fa-history"></i>
+                                <h4>Session Manager</h4>
+                                <p>Manages persistent sessions, maintains context across IDE restarts, and handles long-running workflows.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="implementation" class="content-section">
+                        <h2><i class="fas fa-hammer"></i> Implementation Guide</h2>
+
+                        <h3>1. Setting Up the Development Environment</h3>
+                        <div class="code-block">
+                            <pre><code class="language-bash"># Clone the Cline workflow template
+git clone https://github.com/your-org/cline-zv3-workflow-template.git
+cd cline-zv3-workflow-template
+
+# Install dependencies
+npm install
+
+# Set up Zero-Vector-3 connection
+cp .env.example .env
+# Edit .env with your Zero-Vector-3 credentials</code></pre>
+                        </div>
+
+                        <h3>2. Core Workflow Implementation</h3>
+                        <p>Create the main workflow class that handles communication with Zero-Vector-3:</p>
+                        
+                        <div class="code-block">
+                            <pre><code class="language-typescript">// src/workflows/ZeroVectorWorkflow.ts
+import { MCPClient } from '@zero-vector/mcp-client';
+import { WorkflowBase, WorkflowResult } from './base/WorkflowBase';
+
+export class ZeroVectorWorkflow extends WorkflowBase {
+    private mcpClient: MCPClient;
+    private sessionId: string;
+
+    constructor(config: WorkflowConfig) {
+        super(config);
+        this.mcpClient = new MCPClient({
+            serverUrl: config.zeroVectorUrl,
+            apiKey: config.apiKey
+        });
+        this.sessionId = this.generateSessionId();
+    }
+
+    async executeConversationWorkflow(
+        query: string, 
+        context: VSCodeContext
+    ): Promise<WorkflowResult> {
+        try {
+            // Prepare context from VSCode environment
+            const workflowContext = await this.prepareContext(context);
+            
+            // Execute Zero-Vector-3 workflow
+            const result = await this.mcpClient.executeWorkflow({
+                query,
+                persona: this.config.defaultPersona,
+                user_id: this.sessionId,
+                workflow_type: 'zero_vector_conversation',
+                config: {
+                    cache_enabled: true,
+                    enable_memory_maintenance: true,
+                    confidence_threshold: 0.8
+                },
+                context: workflowContext
+            });
+
+            // Process and return results
+            return this.processWorkflowResult(result);
+
+        } catch (error) {
+            return this.handleWorkflowError(error);
+        }
+    }
+
+    private async prepareContext(context: VSCodeContext): Promise<any> {
+        return {
+            activeFile: context.activeFile,
+            selection: context.selection,
+            openFiles: context.openFiles,
+            projectStructure: await this.analyzeProjectStructure(),
+            gitContext: await this.extractGitContext(),
+            diagnostics: context.diagnostics
+        };
+    }
+}</code></pre>
+                        </div>
+
+                        <h3>3. VSCode Integration Layer</h3>
+                        <p>Implement the VSCode extension integration for seamless workflow triggering:</p>
+
+                        <div class="code-block">
+                            <pre><code class="language-typescript">// src/extension.ts
+import * as vscode from 'vscode';
+import { ZeroVectorWorkflow } from './workflows/ZeroVectorWorkflow';
+import { ContextAnalyzer } from './context/ContextAnalyzer';
+
+export function activate(context: vscode.ExtensionContext) {
+    const workflow = new ZeroVectorWorkflow({
+        zeroVectorUrl: process.env.ZERO_VECTOR_URL,
+        apiKey: process.env.ZERO_VECTOR_API_KEY,
+        defaultPersona: 'technical_expert'
+    });
+
+    const contextAnalyzer = new ContextAnalyzer();
+
+    // Register command for manual workflow trigger
+    const disposableCommand = vscode.commands.registerCommand(
+        'zeroVector.executeWorkflow', 
+        async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) return;
+
+            const context = await contextAnalyzer.analyze(editor);
+            const query = await vscode.window.showInputBox({
+                prompt: 'Enter your query for Zero-Vector-3',
+                placeHolder: 'e.g., "Explain this code and suggest improvements"'
+            });
+
+            if (query) {
+                const result = await workflow.executeConversationWorkflow(query, context);
+                await displayWorkflowResult(result);
+            }
+        }
+    );
+
+    // Register automatic workflow triggers
+    const disposableCompletion = vscode.languages.registerCompletionItemProvider(
+        ['typescript', 'javascript', 'python'],
+        new ZeroVectorCompletionProvider(workflow),
+        '.'
+    );
+
+    context.subscriptions.push(disposableCommand, disposableCompletion);
+}
+
+async function displayWorkflowResult(result: WorkflowResult) {
+    const panel = vscode.window.createWebviewPanel(
+        'zeroVectorResult',
+        'Zero-Vector-3 Response',
+        vscode.ViewColumn.Beside,
+        { enableScripts: true }
+    );
+
+    panel.webview.html = generateResultHTML(result);
+}</code></pre>
+                        </div>
+
+                        <h3>4. Context Analysis Implementation</h3>
+                        <div class="code-block">
+                            <pre><code class="language-typescript">// src/context/ContextAnalyzer.ts
+export class ContextAnalyzer {
+    async analyze(editor: vscode.TextEditor): Promise<VSCodeContext> {
+        return {
+            activeFile: {
+                path: editor.document.uri.fsPath,
+                language: editor.document.languageId,
+                content: editor.document.getText()
+            },
+            selection: {
+                text: editor.document.getText(editor.selection),
+                range: editor.selection,
+                isEmpty: editor.selection.isEmpty
+            },
+            openFiles: await this.getOpenFiles(),
+            diagnostics: await this.getDiagnostics(editor.document),
+            symbols: await this.extractSymbols(editor.document),
+            dependencies: await this.analyzeDependencies()
+        };
+    }
+
+    private async extractSymbols(document: vscode.TextDocument) {
+        const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+            'vscode.executeDocumentSymbolProvider',
+            document.uri
+        );
+        return symbols || [];
+    }
+
+    private async analyzeDependencies(): Promise<Dependency[]> {
+        // Analyze package.json, requirements.txt, etc.
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) return [];
+
+        const dependencies: Dependency[] = [];
+        
+        // Check for package.json
+        const packageJsonPath = vscode.Uri.joinPath(workspaceFolder.uri, 'package.json');
+        try {
+            const packageContent = await vscode.workspace.fs.readFile(packageJsonPath);
+            const packageJson = JSON.parse(packageContent.toString());
+            
+            Object.keys(packageJson.dependencies || {}).forEach(dep => {
+                dependencies.push({
+                    name: dep,
+                    version: packageJson.dependencies[dep],
+                    type: 'npm'
+                });
+            });
+        } catch (error) {
+            // Package.json not found or invalid
+        }
+
+        return dependencies;
+    }
+}</code></pre>
+                        </div>
+                    </section>
+
+                    <section id="integration" class="content-section">
+                        <h2><i class="fas fa-plug"></i> MCP Integration</h2>
+
+                        <h3>Advanced MCP Client Configuration</h3>
+                        <p>Configure the MCP client for optimal performance and reliability:</p>
+
+                        <div class="code-block">
+                            <pre><code class="language-typescript">// src/mcp/AdvancedMCPClient.ts
+export class AdvancedMCPClient extends MCPClient {
+    private connectionPool: ConnectionPool;
+    private retryPolicy: RetryPolicy;
+    private circuitBreaker: CircuitBreaker;
+
+    constructor(config: AdvancedMCPConfig) {
+        super(config);
+        this.connectionPool = new ConnectionPool(config.poolSize || 5);
+        this.retryPolicy = new ExponentialBackoffRetry({
+            maxRetries: 3,
+            baseDelay: 1000,
+            maxDelay: 10000
+        });
+        this.circuitBreaker = new CircuitBreaker({
+            failureThreshold: 5,
+            resetTimeout: 30000
+        });
+    }
+
+    async executeWorkflowWithResilience(params: WorkflowParams): Promise<WorkflowResult> {
+        return this.circuitBreaker.execute(async () => {
+            return this.retryPolicy.execute(async () => {
+                const connection = await this.connectionPool.acquire();
+                try {
+                    return await connection.executeWorkflow(params);
+                } finally {
+                    this.connectionPool.release(connection);
+                }
+            });
+        });
+    }
+
+    async streamWorkflowExecution(
+        params: WorkflowParams,
+        onProgress: (progress: WorkflowProgress) => void
+    ): Promise<WorkflowResult> {
+        const connection = await this.connectionPool.acquire();
+        
+        try {
+            const stream = connection.streamWorkflow(params);
+            
+            for await (const chunk of stream) {
+                if (chunk.type === 'progress') {
+                    onProgress(chunk.data);
+                } else if (chunk.type === 'result') {
+                    return chunk.data;
+                } else if (chunk.type === 'error') {
+                    throw new Error(chunk.error);
+                }
+            }
+        } finally {
+            this.connectionPool.release(connection);
+        }
+    }
+}</code></pre>
+                        </div>
+
+                        <h3>Workflow State Management</h3>
+                        <div class="code-block">
+                            <pre><code class="language-typescript">// src/state/WorkflowStateManager.ts
+export class WorkflowStateManager {
+    private states: Map<string, WorkflowState> = new Map();
+    private persistence: StatePersistence;
+
+    constructor(context: vscode.ExtensionContext) {
+        this.persistence = new StatePersistence(context);
+        this.loadPersistedStates();
+    }
+
+    async createWorkflowSession(
+        workflowType: string,
+        initialContext: any
+    ): Promise<string> {
+        const sessionId = this.generateSessionId();
+        const state: WorkflowState = {
+            sessionId,
+            workflowType,
+            status: 'initializing',
+            context: initialContext,
+            history: [],
+            startTime: Date.now(),
+            lastActivity: Date.now()
+        };
+
+        this.states.set(sessionId, state);
+        await this.persistence.saveState(sessionId, state);
+        
+        return sessionId;
+    }
+
+    async updateWorkflowState(
+        sessionId: string,
+        update: Partial<WorkflowState>
+    ): Promise<void> {
+        const currentState = this.states.get(sessionId);
+        if (!currentState) {
+            throw new Error(`Workflow session ${sessionId} not found`);
+        }
+
+        const newState = {
+            ...currentState,
+            ...update,
+            lastActivity: Date.now()
+        };
+
+        this.states.set(sessionId, newState);
+        await this.persistence.saveState(sessionId, newState);
+    }
+
+    async resumeWorkflow(sessionId: string): Promise<WorkflowState | null> {
+        const state = this.states.get(sessionId) || 
+                     await this.persistence.loadState(sessionId);
+        
+        if (state && this.isResumable(state)) {
+            state.status = 'resumed';
+            this.states.set(sessionId, state);
+            return state;
+        }
+        
+        return null;
+    }
+
+    private isResumable(state: WorkflowState): boolean {
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+        return (Date.now() - state.lastActivity) < maxAge &&
+               ['paused', 'waiting_approval'].includes(state.status);
+    }
+}</code></pre>
+                        </div>
+                    </section>
+
+                    <section id="customization" class="content-section">
+                        <h2><i class="fas fa-cogs"></i> Customization</h2>
+
+                        <h3>Custom Workflow Types</h3>
+                        <p>Extend the base workflow system to create specialized workflows for your development needs:</p>
+
+                        <div class="code-block">
+                            <pre><code class="language-typescript">// src/workflows/custom/CodeReviewWorkflow.ts
+export class CodeReviewWorkflow extends ZeroVectorWorkflow {
+    async executeCodeReview(
+        filePath: string,
+        changes: TextChange[]
+    ): Promise<CodeReviewResult> {
+        
+        const context = {
+            type: 'code_review',
+            file: filePath,
+            changes: changes,
+            projectContext: await this.getProjectContext(),
+            codeStandards: await this.loadCodingStandards()
+        };
+
+        const result = await this.mcpClient.executeWorkflow({
+            query: `Review the following code changes for quality, security, and best practices:`,
+            persona: 'code_reviewer',
+            user_id: this.sessionId,
+            workflow_type: 'multi_step_reasoning',
+            config: {
+                max_reasoning_steps: 7,
+                confidence_threshold: 0.9,
+                enable_approval: false
+            },
+            context
+        });
+
+        return this.formatCodeReviewResult(result);
+    }
+
+    private async loadCodingStandards(): Promise<CodingStandards> {
+        // Load project-specific coding standards
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) return this.getDefaultStandards();
+
+        try {
+            const standardsPath = vscode.Uri.joinPath(
+                workspaceFolder.uri, 
+                '.vscode', 
+                'coding-standards.json'
+            );
+            const content = await vscode.workspace.fs.readFile(standardsPath);
+            return JSON.parse(content.toString());
+        } catch {
+            return this.getDefaultStandards();
+        }
+    }
+}</code></pre>
+                        </div>
+
+                        <h3>Persona Configuration</h3>
+                        <div class="code-block">
+                            <pre><code class="language-typescript">// src/personas/PersonaManager.ts
+export class PersonaManager {
+    private personas: Map<string, PersonaConfig> = new Map();
+
+    async initializeProjectPersonas(projectType: ProjectType): Promise<void> {
+        const personaConfigs = await this.loadPersonaConfigurations(projectType);
+        
+        for (const config of personaConfigs) {
+            const persona = await this.mcpClient.createPersona({
+                name: config.name,
+                description: config.description,
+                systemPrompt: this.buildSystemPrompt(config),
+                temperature: config.temperature || 0.7,
+                maxTokens: config.maxTokens || 2048,
+                maxMemorySize: config.maxMemorySize || 1000
+            });
+
+            this.personas.set(config.name, {
+                ...config,
+                id: persona.id
+            });
+
+            // Initialize with project-specific knowledge
+            await this.seedPersonaMemory(persona.id, config.initialKnowledge);
+        }
+    }
+
+    private buildSystemPrompt(config: PersonaConfig): string {
+        const basePrompt = config.basePrompt;
+        const projectContext = this.getProjectContext();
+        const toolsAvailable = this.getAvailableTools();
+
+        return `${basePrompt}
+
+PROJECT CONTEXT:
+${projectContext}
+
+AVAILABLE TOOLS:
+${toolsAvailable.map(tool => `- ${tool.name}: ${tool.description}`).join('\n')}
+
+CODING STANDARDS:
+${this.getCodingStandardsSummary()}`;
+    }
+
+    async getPersonaForTask(taskType: TaskType): Promise<string> {
+        const persona = Array.from(this.personas.values())
+            .find(p => p.specializations.includes(taskType));
+        
+        return persona?.id || 'helpful_assistant';
+    }
+}</code></pre>
+                        </div>
+                    </section>
+
+                    <section id="debugging" class="content-section">
+                        <h2><i class="fas fa-bug"></i> Debugging & Testing</h2>
+
+                        <h3>Workflow Debugging Tools</h3>
+                        <p>Implement comprehensive debugging and monitoring for your workflows:</p>
+
+                        <div class="code-block">
+                            <pre><code class="language-typescript">// src/debug/WorkflowDebugger.ts
+export class WorkflowDebugger {
+    private debugChannel: vscode.OutputChannel;
+    private telemetry: TelemetryReporter;
+
+    constructor() {
+        this.debugChannel = vscode.window.createOutputChannel('Zero-Vector-3 Debug');
+        this.telemetry = new TelemetryReporter();
+    }
+
+    logWorkflowExecution(sessionId: string, event: WorkflowEvent): void {
+        const timestamp = new Date().toISOString();
+        const logEntry = `[${timestamp}] ${sessionId}: ${event.type} - ${event.data}`;
+        
+        this.debugChannel.appendLine(logEntry);
+        
+        if (event.level === 'error') {
+            this.debugChannel.show();
+        }
+
+        this.telemetry.sendEvent('workflow_event', {
+            sessionId,
+            eventType: event.type,
+            duration: event.duration?.toString(),
+            success: event.success?.toString()
+        });
+    }
+
+    async analyzeWorkflowPerformance(sessionId: string): Promise<PerformanceReport> {
+        const events = await this.getWorkflowEvents(sessionId);
+        
+        return {
+            totalDuration: this.calculateTotalDuration(events),
+            bottlenecks: this.identifyBottlenecks(events),
+            memoryUsage: this.calculateMemoryUsage(events),
+            recommendations: this.generateRecommendations(events)
+        };
+    }
+
+    createDebugWebview(): vscode.WebviewPanel {
+        const panel = vscode.window.createWebviewPanel(
+            'zeroVectorDebug',
+            'Zero-Vector-3 Debug Console',
+            vscode.ViewColumn.Beside,
+            { enableScripts: true }
+        );
+
+        panel.webview.html = this.getDebugWebviewContent();
+        
+        // Handle messages from webview
+        panel.webview.onDidReceiveMessage(async message => {
+            switch (message.command) {
+                case 'getWorkflowStates':
+                    const states = await this.getAllWorkflowStates();
+                    panel.webview.postMessage({ command: 'workflowStates', data: states });
+                    break;
+                case 'clearLogs':
+                    this.debugChannel.clear();
+                    break;
+            }
+        });
+
+        return panel;
+    }
+}</code></pre>
+                        </div>
+
+                        <h3>Unit Testing Framework</h3>
+                        <div class="code-block">
+                            <pre><code class="language-typescript">// tests/workflows/ZeroVectorWorkflow.test.ts
+import { ZeroVectorWorkflow } from '../../src/workflows/ZeroVectorWorkflow';
+import { MockMCPClient } from '../mocks/MockMCPClient';
+
+describe('ZeroVectorWorkflow', () => {
+    let workflow: ZeroVectorWorkflow;
+    let mockMCPClient: MockMCPClient;
+
+    beforeEach(() => {
+        mockMCPClient = new MockMCPClient();
+        workflow = new ZeroVectorWorkflow({
+            mcpClient: mockMCPClient,
+            defaultPersona: 'test_persona'
+        });
+    });
+
+    describe('executeConversationWorkflow', () => {
+        it('should execute workflow with proper context', async () => {
+            const mockContext = {
+                activeFile: { path: '/test.ts', content: 'console.log("test");' },
+                selection: { text: 'console.log', isEmpty: false }
+            };
+
+            mockMCPClient.setMockResponse({
+                workflow_id: 'test-123',
+                status: 'completed',
+                result: { content: 'This logs a test message to console' }
+            });
+
+            const result = await workflow.executeConversationWorkflow(
+                'Explain this code',
+                mockContext
+            );
+
+            expect(result.success).toBe(true);
+            expect(result.content).toContain('logs a test message');
+            expect(mockMCPClient.lastRequest?.context?.activeFile?.path).toBe('/test.ts');
+        });
+
+        it('should handle workflow errors gracefully', async () => {
+            mockMCPClient.setMockError(new Error('Network timeout'));
+
+            const result = await workflow.executeConversationWorkflow(
+                'Explain this code',
+                {}
+            );
+
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('Network timeout');
+        });
+    });
+});</code></pre>
+                        </div>
+                    </section>
+
+                    <section id="deployment" class="content-section">
+                        <h2><i class="fas fa-rocket"></i> Deployment</h2>
+
+                        <h3>Extension Packaging</h3>
+                        <div class="code-block">
+                            <pre><code class="language-json">// package.json (key sections)
+{
+  "name": "zero-vector-3-workflow",
+  "displayName": "Zero-Vector-3 AI Workflows",
+  "description": "Advanced AI workflows powered by Zero-Vector-3",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["AI", "Productivity", "Linters"],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:javascript",
+    "onLanguage:python",
+    "onCommand:zeroVector.executeWorkflow"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "zeroVector.executeWorkflow",
+        "title": "Execute Zero-Vector-3 Workflow",
+        "category": "Zero-Vector"
+      }
+    ],
+    "configuration": {
+      "title": "Zero-Vector-3",
+      "properties": {
+        "zeroVector.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:3001",
+          "description": "Zero-Vector-3 server URL"
+        },
+        "zeroVector.apiKey": {
+          "type": "string",
+          "description": "Zero-Vector-3 API key"
+        }
+      }
+    }
+  }
+}</code></pre>
+                        </div>
+
+                        <h3>Build and Distribution</h3>
+                        <div class="code-block">
+                            <pre><code class="language-bash"># Build the extension
+npm run build
+
+# Package for distribution
+npm run package
+
+# Publish to marketplace
+npm run publish</code></pre>
+                        </div>
+                    </section>
+
+                    <section id="best-practices" class="content-section">
+                        <h2><i class="fas fa-star"></i> Best Practices</h2>
+
+                        <div class="best-practices-grid">
+                            <div class="practice-card">
+                                <i class="fas fa-shield-alt"></i>
+                                <h4>Security</h4>
+                                <ul>
+                                    <li>Never hardcode API keys</li>
+                                    <li>Validate all user inputs</li>
+                                    <li>Use secure communication protocols</li>
+                                    <li>Implement proper error handling</li>
+                                </ul>
+                            </div>
+                            <div class="practice-card">
+                                <i class="fas fa-tachometer-alt"></i>
+                                <h4>Performance</h4>
+                                <ul>
+                                    <li>Cache workflow results when appropriate</li>
+                                    <li>Implement connection pooling</li>
+                                    <li>Use streaming for large responses</li>
+                                    <li>Monitor memory usage</li>
+                                </ul>
+                            </div>
+                            <div class="practice-card">
+                                <i class="fas fa-users"></i>
+                                <h4>User Experience</h4>
+                                <ul>
+                                    <li>Provide clear progress indicators</li>
+                                    <li>Handle network failures gracefully</li>
+                                    <li>Offer meaningful error messages</li>
+                                    <li>Support workflow cancellation</li>
+                                </ul>
+                            </div>
+                            <div class="practice-card">
+                                <i class="fas fa-code"></i>
+                                <h4>Code Quality</h4>
+                                <ul>
+                                    <li>Write comprehensive tests</li>
+                                    <li>Use TypeScript for type safety</li>
+                                    <li>Follow VSCode extension guidelines</li>
+                                    <li>Document all public APIs</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="highlight-box success">
+                            <h4><i class="fas fa-lightbulb"></i> Pro Tips</h4>
+                            <ul>
+                                <li>Start with simple workflows and gradually add complexity</li>
+                                <li>Use personas strategically for different development tasks</li>
+                                <li>Implement robust error handling and retry logic</li>
+                                <li>Monitor workflow performance and optimize bottlenecks</li>
+                                <li>Provide clear documentation for your custom workflows</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <div class="lesson-navigation">
+                        <a href="../index.html" class="nav-btn prev">
+                            <i class="fas fa-arrow-left"></i>
+                            Back to Tutorials
+                        </a>
+                        <a href="../index.html#advanced" class="nav-btn next">
+                            More Advanced Topics
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </article>
+            </div>
+        </main>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="https://github.com/MushroomFleet/zero-vector-3">GitHub Repository</a></li>
+                        <li><a href="../index.html">All Tutorials</a></li>
+                        <li><a href="../index.html#advanced">Advanced Guides</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Community</h4>
+                    <ul>
+                        <li><a href="#">Discord Server</a></li>
+                        <li><a href="#">Stack Overflow</a></li>
+                        <li><a href="#">GitHub Discussions</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Zero-Vector-3. Part of the comprehensive AI development ecosystem.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../js/main.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+</body>
+</html>
