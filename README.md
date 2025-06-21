@@ -482,6 +482,6 @@ For issues and questions:
 
 ## Version History
 
-- **v3.0** - LangGraph workflow integration, multi-server support, 24 tools
+- **v3.0** - LangGraph workflow integration, multi-server support, 24 tools.
 - **v2.0** - Hybrid vector-graph capabilities, entity extraction, 18 tools
 - **v1.0** - Basic persona and memory management, 14 tools
