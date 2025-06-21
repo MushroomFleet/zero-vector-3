@@ -244,7 +244,13 @@ async function executeWorkflowTool(args) {
     // Validate required arguments
     const validation = validateRequired(args, ['query', 'user_id']);
     if (!validation.valid) {
-      throw new Error(`Missing required fields: ${validation.missing.join(', ')}`);
+      return {
+        content: [{
+          type: 'text',
+          text: `❌ Missing required fields: ${validation.missing.join(', ')}`
+        }],
+        isError: true
+      };
     }
 
     // Sanitize inputs
@@ -298,32 +304,53 @@ async function executeWorkflowTool(args) {
     }, 'zeroVectorV3');
 
     if (!response.success) {
-      throw new Error(`Workflow execution failed: ${response.error}`);
+      return {
+        content: [{
+          type: 'text',
+          text: `❌ Workflow execution failed: ${response.error}`
+        }],
+        isError: true
+      };
+    }
+
+    // Format successful response
+    let resultText = `✅ **LangGraph Workflow Executed Successfully**\n\n`;
+    resultText += `🆔 **Workflow ID:** ${response.data.workflow_context?.workflow_id}\n`;
+    resultText += `🧵 **Thread ID:** ${response.data.thread_id || sanitizedArgs.thread_id}\n`;
+    resultText += `📊 **Status:** ${response.data.workflow_context?.current_step || 'completed'}\n`;
+    resultText += `🤖 **Persona:** ${sanitizedArgs.persona}\n`;
+    resultText += `🔧 **Workflow Type:** ${sanitizedArgs.workflow_type}\n\n`;
+
+    if (response.data.messages && response.data.messages.length > 0) {
+      resultText += `💬 **Response Messages:**\n`;
+      response.data.messages.forEach((msg, index) => {
+        resultText += `${index + 1}. **${msg.type}:** ${msg.content}\n`;
+      });
+      resultText += `\n`;
+    }
+
+    if (response.data.execution_metadata) {
+      const meta = response.data.execution_metadata;
+      resultText += `⚡ **Performance:**\n`;
+      resultText += `• Execution Time: ${meta.execution_time_ms}ms\n`;
+      resultText += `• Step Count: ${meta.step_count}\n`;
+      resultText += `• Cache Hits: ${meta.cache_hits || 0}\n`;
     }
 
     return {
-      success: true,
-      workflow_id: response.data.workflow_context?.workflow_id,
-      thread_id: response.data.thread_id || sanitizedArgs.thread_id,
-      status: response.data.workflow_context?.current_step || 'completed',
-      result: {
-        messages: response.data.messages,
-        execution_metadata: response.data.execution_metadata,
-        workflow_context: response.data.workflow_context,
-        persona_context: response.data.persona_context
-      },
-      performance: {
-        execution_time_ms: response.data.execution_metadata?.execution_time_ms,
-        step_count: response.data.execution_metadata?.step_count,
-        cache_hits: response.data.execution_metadata?.cache_hits || 0
-      }
+      content: [{
+        type: 'text',
+        text: resultText
+      }]
     };
 
   } catch (error) {
     return {
-      success: false,
-      error: error.message,
-      details: error.stack
+      content: [{
+        type: 'text',
+        text: `❌ Unexpected error: ${error.message}\n\n💡 Check the Zero-Vector v3 server connection and configuration.`
+      }],
+      isError: true
     };
   }
 }
@@ -332,7 +359,13 @@ async function getWorkflowStatusTool(args) {
   try {
     const validation = validateRequired(args, ['workflow_id']);
     if (!validation.valid) {
-      throw new Error(`Missing required fields: ${validation.missing.join(', ')}`);
+      return {
+        content: [{
+          type: 'text',
+          text: `❌ Missing required fields: ${validation.missing.join(', ')}`
+        }],
+        isError: true
+      };
     }
 
     const workflowId = sanitizeInput(args.workflow_id);
@@ -351,25 +384,69 @@ async function getWorkflowStatusTool(args) {
     const response = await makeRequest(`/api/v3/langgraph/status?${queryParams}`);
 
     if (!response.success) {
-      throw new Error(`Failed to get workflow status: ${response.error}`);
+      return {
+        content: [{
+          type: 'text',
+          text: `❌ Failed to get workflow status: ${response.error}`
+        }],
+        isError: true
+      };
+    }
+
+    // Format successful response
+    let resultText = `📊 **Workflow Status Report**\n\n`;
+    resultText += `🆔 **Workflow ID:** ${workflowId}\n`;
+    resultText += `📈 **Status:** ${response.data.status}\n`;
+    resultText += `🔄 **Current Step:** ${response.data.current_step || 'N/A'}\n`;
+    
+    if (threadId) {
+      resultText += `🧵 **Thread ID:** ${threadId}\n`;
+    }
+    
+    if (response.data.completed_steps) {
+      resultText += `✅ **Completed Steps:** ${response.data.completed_steps}\n`;
+    }
+    
+    if (response.data.last_updated) {
+      resultText += `⏰ **Last Updated:** ${response.data.last_updated}\n`;
+    }
+
+    if (response.data.errors && response.data.errors.length > 0) {
+      resultText += `\n❌ **Errors:**\n`;
+      response.data.errors.forEach((error, index) => {
+        resultText += `${index + 1}. ${error}\n`;
+      });
+    }
+
+    if (includeMetadata && response.data.metadata) {
+      resultText += `\n📋 **Metadata:**\n`;
+      Object.entries(response.data.metadata).forEach(([key, value]) => {
+        resultText += `• ${key}: ${JSON.stringify(value)}\n`;
+      });
+    }
+
+    if (response.data.performance) {
+      const perf = response.data.performance;
+      resultText += `\n⚡ **Performance:**\n`;
+      Object.entries(perf).forEach(([key, value]) => {
+        resultText += `• ${key}: ${value}\n`;
+      });
     }
 
     return {
-      success: true,
-      workflow_id: workflowId,
-      status: response.data.status,
-      current_step: response.data.current_step,
-      completed_steps: response.data.completed_steps,
-      metadata: includeMetadata ? response.data.metadata : undefined,
-      performance: response.data.performance,
-      errors: response.data.errors || [],
-      last_updated: response.data.last_updated
+      content: [{
+        type: 'text',
+        text: resultText
+      }]
     };
 
   } catch (error) {
     return {
-      success: false,
-      error: error.message
+      content: [{
+        type: 'text',
+        text: `❌ Unexpected error: ${error.message}`
+      }],
+      isError: true
     };
   }
 }
@@ -378,7 +455,13 @@ async function resumeWorkflowTool(args) {
   try {
     const validation = validateRequired(args, ['thread_id']);
     if (!validation.valid) {
-      throw new Error(`Missing required fields: ${validation.missing.join(', ')}`);
+      return {
+        content: [{
+          type: 'text',
+          text: `❌ Missing required fields: ${validation.missing.join(', ')}`
+        }],
+        isError: true
+      };
     }
 
     const requestPayload = {
@@ -397,22 +480,54 @@ async function resumeWorkflowTool(args) {
     });
 
     if (!response.success) {
-      throw new Error(`Failed to resume workflow: ${response.error}`);
+      return {
+        content: [{
+          type: 'text',
+          text: `❌ Failed to resume workflow: ${response.error}`
+        }],
+        isError: true
+      };
+    }
+
+    // Format successful response
+    let resultText = `🔄 **Workflow Resumed Successfully**\n\n`;
+    resultText += `🆔 **Workflow ID:** ${response.data.workflow_context?.workflow_id}\n`;
+    resultText += `🧵 **Thread ID:** ${args.thread_id}\n`;
+    resultText += `📊 **Status:** ${response.data.workflow_context?.current_step || 'completed'}\n`;
+    resultText += `⏰ **Resumed At:** ${new Date().toISOString()}\n`;
+
+    if (args.workflow_id) {
+      resultText += `🔗 **Original Workflow ID:** ${args.workflow_id}\n`;
+    }
+
+    if (args.approval_result && Object.keys(args.approval_result).length > 0) {
+      resultText += `\n✅ **Approval Result:**\n`;
+      Object.entries(args.approval_result).forEach(([key, value]) => {
+        resultText += `• ${key}: ${JSON.stringify(value)}\n`;
+      });
+    }
+
+    if (args.input_data && Object.keys(args.input_data).length > 0) {
+      resultText += `\n📝 **Input Data:**\n`;
+      Object.entries(args.input_data).forEach(([key, value]) => {
+        resultText += `• ${key}: ${JSON.stringify(value)}\n`;
+      });
     }
 
     return {
-      success: true,
-      workflow_id: response.data.workflow_context?.workflow_id,
-      thread_id: args.thread_id,
-      status: response.data.workflow_context?.current_step || 'completed',
-      result: response.data,
-      resumed_at: new Date().toISOString()
+      content: [{
+        type: 'text',
+        text: resultText
+      }]
     };
 
   } catch (error) {
     return {
-      success: false,
-      error: error.message
+      content: [{
+        type: 'text',
+        text: `❌ Unexpected error: ${error.message}`
+      }],
+      isError: true
     };
   }
 }
@@ -421,7 +536,13 @@ async function cancelWorkflowTool(args) {
   try {
     const validation = validateRequired(args, ['workflow_id']);
     if (!validation.valid) {
-      throw new Error(`Missing required fields: ${validation.missing.join(', ')}`);
+      return {
+        content: [{
+          type: 'text',
+          text: `❌ Missing required fields: ${validation.missing.join(', ')}`
+        }],
+        isError: true
+      };
     }
 
     const requestPayload = {
@@ -439,21 +560,41 @@ async function cancelWorkflowTool(args) {
     });
 
     if (!response.success) {
-      throw new Error(`Failed to cancel workflow: ${response.error}`);
+      return {
+        content: [{
+          type: 'text',
+          text: `❌ Failed to cancel workflow: ${response.error}`
+        }],
+        isError: true
+      };
     }
 
+    // Format successful response
+    let resultText = `🛑 **Workflow Cancelled Successfully**\n\n`;
+    resultText += `🆔 **Workflow ID:** ${args.workflow_id}\n`;
+    resultText += `📝 **Reason:** ${args.reason || 'Cancelled via MCP server'}\n`;
+    resultText += `⏰ **Cancelled At:** ${new Date().toISOString()}\n`;
+
+    if (args.thread_id) {
+      resultText += `🧵 **Thread ID:** ${args.thread_id}\n`;
+    }
+
+    resultText += `\n✅ **Status:** Cancellation successful`;
+
     return {
-      success: true,
-      workflow_id: args.workflow_id,
-      cancelled: true,
-      reason: args.reason,
-      cancelled_at: new Date().toISOString()
+      content: [{
+        type: 'text',
+        text: resultText
+      }]
     };
 
   } catch (error) {
     return {
-      success: false,
-      error: error.message
+      content: [{
+        type: 'text',
+        text: `❌ Unexpected error: ${error.message}`
+      }],
+      isError: true
     };
   }
 }
@@ -470,26 +611,59 @@ async function listActiveWorkflowsTool(args) {
     const response = await makeRequest(`/api/v3/langgraph/workflows?${queryParams}`);
 
     if (!response.success) {
-      throw new Error(`Failed to list workflows: ${response.error}`);
+      return {
+        content: [{
+          type: 'text',
+          text: `❌ Failed to list workflows: ${response.error}`
+        }],
+        isError: true
+      };
+    }
+
+    // Format successful response
+    let resultText = `📋 **Active Workflows List**\n\n`;
+    resultText += `📊 **Summary:**\n`;
+    resultText += `• Total Count: ${response.data.total_count || 0}\n`;
+    resultText += `• Active Count: ${response.data.active_count || 0}\n`;
+    resultText += `• Limit: ${args.limit || 50}\n\n`;
+
+    if (args.user_id || args.workflow_type || args.status) {
+      resultText += `🔍 **Filters Applied:**\n`;
+      if (args.user_id) resultText += `• User ID: ${args.user_id}\n`;
+      if (args.workflow_type) resultText += `• Workflow Type: ${args.workflow_type}\n`;
+      if (args.status) resultText += `• Status: ${args.status}\n`;
+      resultText += `\n`;
+    }
+
+    if (response.data.workflows && response.data.workflows.length > 0) {
+      resultText += `🔄 **Workflows:**\n`;
+      response.data.workflows.forEach((workflow, index) => {
+        resultText += `${index + 1}. **${workflow.workflow_id || workflow.id}**\n`;
+        resultText += `   • Type: ${workflow.workflow_type || 'Unknown'}\n`;
+        resultText += `   • Status: ${workflow.status || 'Unknown'}\n`;
+        if (workflow.user_id) resultText += `   • User: ${workflow.user_id}\n`;
+        if (workflow.created_at) resultText += `   • Created: ${workflow.created_at}\n`;
+        if (workflow.last_updated) resultText += `   • Updated: ${workflow.last_updated}\n`;
+        resultText += `\n`;
+      });
+    } else {
+      resultText += `📭 **No workflows found** matching the specified criteria.\n`;
     }
 
     return {
-      success: true,
-      workflows: response.data.workflows,
-      total_count: response.data.total_count,
-      active_count: response.data.active_count,
-      filters: {
-        user_id: args.user_id,
-        workflow_type: args.workflow_type,
-        status: args.status,
-        limit: args.limit || 50
-      }
+      content: [{
+        type: 'text',
+        text: resultText
+      }]
     };
 
   } catch (error) {
     return {
-      success: false,
-      error: error.message
+      content: [{
+        type: 'text',
+        text: `❌ Unexpected error: ${error.message}`
+      }],
+      isError: true
     };
   }
 }
@@ -507,22 +681,78 @@ async function getWorkflowMetricsTool(args) {
     const response = await makeRequest(`/api/v3/langgraph/metrics?${queryParams}`);
 
     if (!response.success) {
-      throw new Error(`Failed to get workflow metrics: ${response.error}`);
+      return {
+        content: [{
+          type: 'text',
+          text: `❌ Failed to get workflow metrics: ${response.error}`
+        }],
+        isError: true
+      };
+    }
+
+    // Format successful response
+    let resultText = `📊 **Workflow Performance Metrics**\n\n`;
+    resultText += `⏰ **Time Range:** ${args.time_range || '24h'}\n`;
+    resultText += `📅 **Generated At:** ${new Date().toISOString()}\n\n`;
+
+    if (args.workflow_type || args.user_id) {
+      resultText += `🔍 **Filters Applied:**\n`;
+      if (args.workflow_type) resultText += `• Workflow Type: ${args.workflow_type}\n`;
+      if (args.user_id) resultText += `• User ID: ${args.user_id}\n`;
+      resultText += `\n`;
+    }
+
+    if (response.data.summary) {
+      const summary = response.data.summary;
+      resultText += `📋 **Summary:**\n`;
+      Object.entries(summary).forEach(([key, value]) => {
+        resultText += `• ${key}: ${value}\n`;
+      });
+      resultText += `\n`;
+    }
+
+    if (response.data.metrics) {
+      const metrics = response.data.metrics;
+      resultText += `📈 **Metrics:**\n`;
+      Object.entries(metrics).forEach(([key, value]) => {
+        if (typeof value === 'object' && value !== null) {
+          resultText += `• **${key}:**\n`;
+          Object.entries(value).forEach(([subKey, subValue]) => {
+            resultText += `  - ${subKey}: ${subValue}\n`;
+          });
+        } else {
+          resultText += `• ${key}: ${value}\n`;
+        }
+      });
+      resultText += `\n`;
+    }
+
+    if (args.include_detailed && response.data.performance_trends) {
+      const trends = response.data.performance_trends;
+      resultText += `📊 **Performance Trends:**\n`;
+      Object.entries(trends).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          resultText += `• **${key}:** ${value.length} data points\n`;
+        } else {
+          resultText += `• ${key}: ${JSON.stringify(value)}\n`;
+        }
+      });
     }
 
     return {
-      success: true,
-      time_range: args.time_range || '24h',
-      metrics: response.data.metrics,
-      summary: response.data.summary,
-      performance_trends: response.data.performance_trends,
-      generated_at: new Date().toISOString()
+      content: [{
+        type: 'text',
+        text: resultText
+      }]
     };
 
   } catch (error) {
     return {
-      success: false,
-      error: error.message
+      content: [{
+        type: 'text',
+        text: `❌ Unexpected error: ${error.message}`
+      }],
+      isError: true
     };
   }
 }
