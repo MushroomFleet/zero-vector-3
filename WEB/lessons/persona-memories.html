@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Persona Memory Management | Zero-Vector-3 Tutorial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'dark-bg': '#0f172a',
+                        'dark-surface': '#1e293b',
+                        'dark-border': '#334155',
+                        'accent-blue': '#3b82f6',
+                        'accent-purple': '#8b5cf6',
+                        'accent-green': '#10b981',
+                        'accent-yellow': '#f59e0b',
+                        'accent-red': '#ef4444'
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <style>
+        .gradient-text {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .step-number {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .code-block {
+            background: #1e293b;
+            border: 1px solid #334155;
+        }
+        .exercise-box {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        .tip-box {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .warning-box {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(239, 68, 68, 0.1));
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-gray-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-dark-surface border-b border-dark-border sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="../index.html" class="flex items-center space-x-4 hover:opacity-80 transition-opacity">
+                        <i class="fas fa-brain text-accent-blue text-2xl"></i>
+                        <h1 class="text-xl font-bold gradient-text">Zero-Vector-3 Tutorials</h1>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <a href="../index.html#lessons" class="text-gray-300 hover:text-accent-blue transition-colors">
+                        <i class="fas fa-book-open mr-2"></i>All Lessons
+                    </a>
+                    <a href="https://github.com/MushroomFleet/zero-vector-3" target="_blank" class="text-gray-300 hover:text-accent-green transition-colors">
+                        <i class="fab fa-github mr-2"></i>GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Lesson Header -->
+    <section class="py-12 px-4 bg-dark-surface/50">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex items-center mb-4">
+                <span class="px-3 py-1 bg-accent-green/20 text-accent-green text-sm rounded-full mr-4">
+                    <i class="fas fa-star mr-1"></i>BEGINNER
+                </span>
+                <span class="text-gray-400">Lesson 3 of 7</span>
+            </div>
+            <h1 class="text-4xl font-bold mb-4 gradient-text">
+                Persona Memory Management
+            </h1>
+            <p class="text-xl text-gray-300 mb-6">
+                Learn how to manage and enhance your AI personas' memories. Think of it as teaching your AI assistants 
+                to remember important things about you, your preferences, and your past conversations.
+            </p>
+            <div class="flex flex-wrap gap-4 text-sm">
+                <div class="flex items-center text-gray-400">
+                    <i class="fas fa-clock mr-2"></i>90 minutes
+                </div>
+                <div class="flex items-center text-gray-400">
+                    <i class="fas fa-layer-group mr-2"></i>Step-by-step with examples
+                </div>
+                <div class="flex items-center text-gray-400">
+                    <i class="fas fa-copy mr-2"></i>Copy-paste friendly
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Table of Contents -->
+    <section class="py-8 px-4">
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-dark-surface rounded-lg p-6 border border-dark-border">
+                <h2 class="text-xl font-semibold mb-4 text-accent-blue">
+                    <i class="fas fa-list mr-2"></i>What You'll Learn
+                </h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <ul class="space-y-2">
+                        <li class="flex items-center text-gray-300">
+                            <i class="fas fa-check text-accent-green mr-3"></i>
+                            Add important facts and preferences to personas
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <i class="fas fa-check text-accent-green mr-3"></i>
+                            Search through persona memories effectively
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <i class="fas fa-check text-accent-green mr-3"></i>
+                            Record conversations and review history
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <i class="fas fa-check text-accent-green mr-3"></i>
+                            Clean up and organize memories
+                        </li>
+                    </ul>
+                    <ul class="space-y-2">
+                        <li class="flex items-center text-gray-300">
+                            <i class="fas fa-check text-accent-green mr-3"></i>
+                            Use advanced memory features like knowledge graphs
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <i class="fas fa-check text-accent-green mr-3"></i>
+                            Build long-term relationships with AI assistants
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <i class="fas fa-check text-accent-green mr-3"></i>
+                            Apply memory management best practices
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <i class="fas fa-check text-accent-green mr-3"></i>
+                            Use hybrid search for intelligent memory retrieval
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Lesson Content -->
+    <main class="py-8 px-4">
+        <div class="max-w-4xl mx-auto space-y-12">
+
+            <!-- What Are Persona Memories -->
+            <section>
+                <h2 class="text-2xl font-bold mb-6 text-accent-blue">
+                    <i class="fas fa-brain mr-3"></i>What Are Persona Memories?
+                </h2>
+                
+                <div class="tip-box p-6 rounded-lg mb-6">
+                    <h3 class="font-semibold text-accent-green mb-4">
+                        <i class="fas fa-notebook mr-2"></i>Think of persona memories as your AI's personal notebook about you:
+                    </h3>
+                    <ul class="space-y-2">
+                        <li class="flex items-start text-gray-300">
+                            <i class="fas fa-dot-circle text-accent-blue mr-3 mt-1 text-sm"></i>
+                            <div>
+                                <strong>Regular conversations</strong> = The AI forgets after the chat ends
+                            </div>
+                        </li>
+                        <li class="flex items-start text-gray-300">
+                            <i class="fas fa-dot-circle text-accent-purple mr-3 mt-1 text-sm"></i>
+                            <div>
+                                <strong>Persona memories</strong> = The AI remembers permanently and uses this knowledge in future conversations
+                            </div>
+                        </li>
+                        <li class="flex items-start text-gray-300">
+                            <i class="fas fa-dot-circle text-accent-green mr-3 mt-1 text-sm"></i>
+                            <div>
+                                Each memory has context, importance levels, and different types
+                            </div>
+                        </li>
+                        <li class="flex items-start text-gray-300">
+                            <i class="fas fa-dot-circle text-accent-yellow mr-3 mt-1 text-sm"></i>
+                            <div>
+                                Memories help your persona give better, more personalized responses over time
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <h3 class="text-xl font-semibold mb-4 text-accent-purple">Why Manage Memories?</h3>
+                <p class="text-gray-300 mb-4">Memory management makes your AI assistants:</p>
+                
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-dark-surface rounded-lg p-6 border border-dark-border">
+                        <h4 class="text-lg font-semibold mb-3 text-accent-blue">
+                            <i class="fas fa-user-circle mr-2"></i>More Personal
+                        </h4>
+                        <p class="text-gray-300 text-sm">Remember your preferences and style</p>
+                    </div>
+                    <div class="bg-dark-surface rounded-lg p-6 border border-dark-border">
+                        <h4 class="text-lg font-semibold mb-3 text-accent-green">
+                            <i class="fas fa-hands-helping mr-2"></i>More Helpful
+                        </h4>
+                        <p class="text-gray-300 text-sm">Build on past conversations and lessons learned</p>
+                    </div>
+                    <div class="bg-dark-surface rounded-lg p-6 border border-dark-border">
+                        <h4 class="text-lg font-semibold mb-3 text-accent-purple">
+                            <i class="fas fa-rocket mr-2"></i>More Efficient
+                        </h4>
+                        <p class="text-gray-300 text-sm">Don't repeat information you've already shared</p>
+                    </div>
+                    <div class="bg-dark-surface rounded-lg p-6 border border-dark-border">
+                        <h4 class="text-lg font-semibold mb-3 text-accent-yellow">
+                            <i class="fas fa-brain mr-2"></i>More Intelligent
+                        </h4>
+                        <p class="text-gray-300 text-sm">Connect related concepts and build understanding</p>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold mb-4 mt-8 text-accent-green">Types of Memories</h3>
+                <p class="text-gray-300 mb-4">Your personas can store 5 different types of memories:</p>
+                <div class="grid md:grid-cols-5 gap-4">
+                    <div class="bg-dark-surface rounded-lg p-4 border border-dark-border">
+                        <h4 class="font-semibold text-accent-blue mb-2">
+                            <i class="fas fa-comments mr-2"></i>conversation
+                        </h4>
+                        <p class="text-gray-300 text-sm">Actual exchanges between you and the persona</p>
+                    </div>
+                    <div class="bg-dark-surface rounded-lg p-4 border border-dark-border">
+                        <h4 class="font-semibold text-accent-green mb-2">
+                            <i class="fas fa-info-circle mr-2"></i>fact
+                        </h4>
+                        <p class="text-gray-300 text-sm">Important information about topics you discuss</p>
+                    </div>
+                    <div class="bg-dark-surface rounded-lg p-4 border border-dark-border">
+                        <h4 class="font-semibold text-accent-purple mb-2">
+                            <i class="fas fa-heart mr-2"></i>preference
+                        </h4>
+                        <p class="text-gray-300 text-sm">Your likes, dislikes, and personal choices</p>
+                    </div>
+                    <div class="bg-dark-surface rounded-lg p-4 border border-dark-border">
+                        <h4 class="font-semibold text-accent-yellow mb-2">
+                            <i class="fas fa-layer-group mr-2"></i>context
+                        </h4>
+                        <p class="text-gray-300 text-sm">Background information and situational details</p>
+                    </div>
+                    <div class="bg-dark-surface rounded-lg p-4 border border-dark-border">
+                        <h4 class="font-semibold text-accent-red mb-2">
+                            <i class="fas fa-cog mr-2"></i>system
+                        </h4>
+                        <p class="text-gray-300 text-sm">Technical notes and configuration information</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Prerequisites -->
+            <section>
+                <h2 class="text-2xl font-bold mb-6 text-accent-blue">
+                    <i class="fas fa-clipboard-check mr-3"></i>Before We Start - Prerequisites
+                </h2>
+                
+                <div class="warning-box p-6 rounded-lg mb-6">
+                    <h3 class="font-semibold text-accent-yellow mb-4">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>You'll need:
+                    </h3>
+                    <ul class="space-y-2">
+                        <li class="flex items-center text-gray-300">
+                            <i class="fas fa-check text-accent-green mr-3"></i>
+                            At least one persona already created (if not, see Persona Creation lesson)
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <i class="fas fa-check text-accent-green mr-3"></i>
+                            Basic familiarity with typing in the Cline chat box
+                        </li>
+                        <li class="flex items-center text-gray-300">
+                            <i class="fas fa-check text-accent-green mr-3"></i>
+                            About 90 minutes to complete all exercises
+                        </li>
+                    </ul>
+                </div>
+
+                <h3 class="text-xl font-semibold mb-4 text-accent-purple">Memory Management Tools We'll Use</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-dark-surface rounded-lg p-6 border border-dark-border">
+                        <h4 class="text-lg font-semibold mb-3 text-accent-green">
+                            <i class="fas fa-plus mr-2"></i>add_memory
+                        </h4>
+                        <p class="text-gray-300 text-sm">Store new information in persona memory</p>
+                    </div>
+                    <div class="bg-dark-surface rounded-lg p-6 border border-dark-border">
+                        <h4 class="text-lg font-semibold mb-3 text-accent-blue">
+                            <i class="fas fa-search mr-2"></i>search_persona_memories
+                        </h4>
+                        <p class="text-gray-300 text-sm">Find specific memories using keywords</p>
+                    </div>
+                    <div class="bg-dark-surface rounded-lg p-6 border border-dark-border">
+                        <h4 class="text-lg font-semibold mb-3 text-accent-purple">
+                            <i class="fas fa-comments mr-2"></i>add_conversation
+                        </h4>
+                        <p class="text-gray-300 text-sm">Record conversation exchanges</p>
+                    </div>
+                    <div class="bg-dark-surface rounded-lg p-6 border border-dark-border">
+                        <h4 class="text-lg font-semibold mb-3 text-accent-yellow">
+                            <i class="fas fa-history mr-2"></i>get_conversation_history
+                        </h4>
+                        <p class="text-gray-300 text-sm">Review past conversations</p>
+                    </div>
+                    <div class="bg-dark-surface rounded-lg p-6 border border-dark-border">
+                        <h4 class="text-lg font-semibold mb-3 text-accent-green">
+                            <i class="fas fa-broom mr-2"></i>cleanup_persona_memories
+                        </h4>
+                        <p class="text-gray-300 text-sm">Organize and clean up old memories</p>
+                    </div>
+                    <div class="bg-dark-surface rounded-lg p-6 border border-dark-border">
+                        <h4 class="text-lg font-semibold mb-3 text-accent-blue">
+                            <i class="fas fa-project-diagram mr-2"></i>explore_knowledge_graph
+                        </h4>
+                        <p class="text-gray-300 text-sm">See how memories connect</p>
+                    </div>
+                </div>
+
+                <div class="tip-box p-6 rounded-lg mt-6">
+                    <p class="text-accent-green font-semibold">
+                        <i class="fas fa-check-circle mr-2"></i>Don't worry if you don't know what these terms mean - we'll explain everything as we go!
+                    </p>
+                </div>
+            </section>
+
+            <!-- Section 1: Understanding Current Memory -->
+            <section>
+                <h2 class="text-2xl font-bold mb-6 text-accent-blue">
+                    <i class="fas fa-eye mr-3"></i>Section 1: Understanding Your Persona's Current Memory
+                </h2>
+                <p class="text-gray-300 mb-6">Let's start by seeing what memories your persona already has.</p>
+
+                <!-- Step 1 -->
+                <div class="bg-dark-surface rounded-lg p-6 border border-dark-border mb-8">
+                    <h3 class="text-xl font-semibold mb-4">
+                        <span class="step-number text-2xl font-bold mr-3">Step 1:</span>
+                        Check Your Available Personas
+                    </h3>
+                    <p class="text-gray-300 mb-4">
+                        <strong>Action:</strong> Click in the chat box and type exactly this:
+                    </p>
+                    <div class="code-block p-4 rounded-lg">
+                        <pre><code class="language-text">Please use the list_personas tool to show me all my personas with their memory counts.</code></pre>
+                    </div>
+                    
+                    <h4 class="font-semibold text-accent-purple mb-3 mt-6">Expected response (yours will be different):</h4>
+                    <div class="bg-dark-surface/50 p-4 rounded-lg">
+                        <pre class="text-gray-300 text-sm">📋 Your Custom Personas:
+
+1. 🤖 Study Buddy (persona_123abc456def)
+   • Status: Active
+   • Created: 2024-01-15T10:30:00Z
+   • Description: A friendly, patient tutor who helps students learn...
+   • Memory Count: 12 memories
+
+2. 💪 Fitness Coach (persona_789xyz123ghi)
+   • Status: Active  
+   • Created: 2024-01-15T10:45:00Z
+   • Description: An energetic personal trainer who provides workout plans...
+   • Memory Count: 8 memories
+
+Total Personas: 2 active</pre>
+                    </div>
+                    
+                    <div class="tip-box p-4 rounded-lg mt-4">
+                        <p class="text-accent-green font-semibold">
+                            📝 Choose one persona to work with for this tutorial. I'll use "Study Buddy" in my examples, but replace it with your persona's name.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="bg-dark-surface rounded-lg p-6 border border-dark-border mb-8">
+                    <h3 class="text-xl font-semibold mb-4">
+                        <span class="step-number text-2xl font-bold mr-3">Step 2:</span>
+                        Examine Your Persona's Detailed Information
+                    </h3>
+                    <p class="text-gray-300 mb-4">Type this (replace "Study Buddy" with your persona's name):</p>
+                    <div class="code-block p-4 rounded-lg">
+                        <pre><code class="language-text">Please use the get_persona tool to show me detailed information about my "Study Buddy" persona including recent memories.</code></pre>
+                    </div>
+                    
+                    <h4 class="font-semibold text-accent-purple mb-3 mt-6">Expected response:</h4>
+                    <div class="bg-dark-surface/50 p-4 rounded-lg">
+                        <pre class="text-gray-300 text-sm">🤖 Persona Details - Study Buddy
+
+📋 Basic Information:
+• ID: persona_123abc456def
+• Name: Study Buddy
+• Status: Active
+• Created: 2024-01-15T10:30:00Z
+
+⚙️ Configuration:
+• Temperature: 0.7 (balanced creativity)
+• Max Tokens: 2048 (detailed responses)
+• Max Memory Size: 1000 memories
+• Memory Decay Time: 7 days
+
+📊 Memory Statistics:
+• Total Memories: 12
+• Recent Memories (last 24h): 3
+• Memory Types:
+  - conversation: 8 memories
+  - fact: 2 memories
+  - preference: 2 memories
+
+🧠 Recent Memories (Preview):
+1. [conversation] "Student asked about photosynthesis..."
+2. [preference] "Student prefers visual examples..."
+3. [fact] "Student is currently studying high school biology"</pre>
+                    </div>
+                    
+                    <div class="tip-box p-4 rounded-lg mt-4">
+                        <h4 class="font-semibold text-accent-blue mb-2">🎯 Notice:</h4>
+                        <ul class="list-disc list-inside text-gray-300 space-y-1 text-sm">
+                            <li>How many memories your persona has</li>
+                            <li>What types of memories exist</li>
+                            <li>Recent memory examples</li>
+                            <li>The persona's memory capacity (Max Memory Size)</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: Adding Your First Manual Memories -->
+            <section>
+                <h2 class="text-2xl font-bold mb-6 text-accent-blue">
+                    <i class="fas fa-plus-circle mr-3"></i>Section 2: Adding Your First Manual Memories
+                </h2>
+                <p class="text-gray-300 mb-6">Now let's add some important information to your persona's memory manually.</p>
+
+                <!-- Adding a Personal Preference -->
+                <div class="bg-dark-surface rounded-lg p-6 border border-dark-border mb-8">
+                    <h3 class="text-xl font-semibold mb-4 text-accent-green">Adding a Personal Preference</h3>
+                    <p class="text-gray-300 mb-4">Let's tell your persona about how you like to learn or work.</p>
+                    <div class="code-block p-4 rounded-lg mb-4">
+                        <pre><code class="language-text">Please use the add_memory tool to add this preference to my "Study Buddy" persona:
+
+Content: "Prefers explanations that include real-world examples and practical applications rather than abstract theory"
+Type: preference
+Importance: 0.8</code></pre>
+                    </div>
+                    
+                    <h4 class="font-semibold text-accent-purple mb-3">Expected response:</h4>
+                    <div class="bg-dark-surface/50 p-4 rounded-lg">
+                        <pre class="text-gray-300 text-sm">✅ Memory Added Successfully
+
+🧠 Memory Details:
+• Memory ID: memory_456def789abc
+• Persona: Study Buddy (persona_123abc456def)
+• Type: preference
+• Content: "Prefers explanations that include real-world examples..."
+• Importance: 0.8 (high importance)
+• Created: 2024-01-15T15:30:00Z
+
+📊 Memory Stats:
+• Total memories for this persona: 13
+• Memory storage: 13/1000 (1.3% full)
+
+🎯 This preference will help Study Buddy tailor explanations to your learning style!</pre>
+                    </div>
+                </div>
+
+                <!-- Adding an Important Fact -->
+                <div class="bg-dark-surface rounded-lg p-6 border border-dark-border mb-8">
+                    <h3 class="text-xl font-semibold mb-4 text-accent-blue">Adding an Important Fact</h3>
+                    <p class="text-gray-300 mb-4">Now let's add a fact about a topic you're working on.</p>
+                    <div class="code-block p-4 rounded-lg mb-4">
+                        <pre><code class="language-text">Please use the add_memory tool to add this fact to my "Study Buddy" persona:
+
+Content: "Currently preparing for final exams in chemistry and biology, with chemistry being the more challenging subject"
+Type: fact
+Importance: 0.9</code></pre>
+                    </div>
+                    
+                    <h4 class="font-semibold text-accent-purple mb-3">Expected response:</h4>
+                    <div class="bg-dark-surface/50 p-4 rounded-lg">
+                        <pre class="text-gray-300 text-sm">✅ Memory Added Successfully
+
+🧠 Memory Details:
+• Memory ID: memory_789abc123def
+• Persona: Study Buddy (persona_123abc456def)
+• Type: fact
+• Content: "Currently preparing for final exams in chemistry and biology..."
+• Importance: 0.9 (very high importance)
+
+🎯 Study Buddy now knows your current academic focus and can prioritize chemistry help!</pre>
+                    </div>
+                </div>
+
+                <!-- Adding Context Information -->
+                <div class="bg-dark-surface rounded-lg p-6 border border-dark-border mb-8">
+                    <h3 class="text-xl font-semibold mb-4 text-accent-purple">Adding Context Information</h3>
+                    <p class="text-gray-300 mb-4">Let's add some background context that helps your persona understand your situation.</p>
+                    <div class="code-block p-4 rounded-lg">
+                        <pre><code class="language-text">Please use the add_memory tool to add this context to my "Study Buddy" persona:
+
+Content: "Studies best in the evening after 6 PM, has about 2 hours available for study sessions on weekdays"
+Type: context
+Importance: 0.6</code></pre>
+                    </div>
+                </div>
+
+                <!-- Testing Your New Memories -->
+                <div class="exercise-box p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-4 text-accent-green">Testing Your New Memories</h3>
+                    <p class="text-gray-300 mb-4">Now let's see if your persona uses these memories! Ask it a question related to what you just added.</p>
+                    <div class="code-block p-4 rounded-lg mb-4">
+                        <pre><code class="language-text">Hi Study Buddy! I need help understanding chemical bonds. Can you explain it in a way that works for my learning style?</code></pre>
+                    </div>
+                    
+                    <div class="tip-box p-4 rounded-lg">
+                        <h4 class="font-semibold text-accent-blue mb-2">🎯 What to look for:</h4>
+                        <p class="text-gray-300 text-sm mb-2">Your persona should:</p>
+                        <ul class="list-disc list-inside text-gray-300 space-y-1 text-sm">
+                            <li>Use real-world examples (because of your preference memory)</li>
+                            <li>Focus on chemistry (because of your fact memory)</li>
+                            <li>Consider your available time (because of your context memory)</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 3: Searching Through Memories -->
+            <section>
+                <h2 class="text-2xl font-bold mb-6 text-accent-blue">
+                    <i class="fas fa-search mr-3"></i>Section 3: Searching Through Memories
+                </h2>
+                <p class="text-gray-300 mb-6">As your persona accumulates memories, you'll need to find specific information. Let's practice memory search.</p>
+
+                <div class="bg-dark-surface rounded-lg p-6 border border-dark-border mb-8">
+                    <h3 class="text-xl font-semibold mb-4 text-accent-green">Basic Memory Search</h3>
+                    <div class="code-block p-4 rounded-lg mb-4">
+                        <pre><code class="language-text">Please use the search_persona_memories tool to search my "Study Buddy" persona's memories for:
+
+Query: "chemistry"
+Limit: 5
+Threshold: 0.3</code></pre>
+                    </div>
+                    
+                    <h4 class="font-semibold text-accent-purple mb-3">Expected response:</h4>
+                    <div class="bg-dark-surface/50 p-4 rounded-lg">
+                        <pre class="text-gray-300 text-sm">🔍 Memory Search Results for "chemistry"
+
+Found 3 matching memories (similarity threshold: 0.3):
+
+1. 📊 Score: 0.85 | Type: fact | ID: memory_789abc123def
+   Content: "Currently preparing for final exams in chemistry and biology..."
+   Created: 2024-01-15T15:32:00Z
+   Importance: 0.9
+
+2. 📊 Score: 0.72 | Type: conversation | ID: memory_abc123def456
+   Content: "Student asked about chemical bonds, provided real-world examples..."
+   Created: 2024-01-15T15:45:00Z
+   Importance: 0.5
+
+3. 📊 Score: 0.68 | Type: preference | ID: memory_456def789abc
+   Content: "Prefers explanations that include real-world examples..."
+   Created: 2024-01-15T15:30:00Z
+   Importance: 0.8</pre>
+                    </div>
+                </div>
+
+                <div class="bg-dark-surface rounded-lg p-6 border border-dark-border mb-8">
+                    <h3 class="text-xl font-semibold mb-4 text-accent-blue">Advanced Search with Full Content</h3>
+                    <div class="code-block p-4 rounded-lg">
+                        <pre><code class="language-text">Please use the search_persona_memories tool for my "Study Buddy" persona:
+
+Query: "study time evening"
+Limit: 3
+Show Full Content: true
+Include Context: true</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 4: Advanced Memory Features -->
+            <section>
+                <h2 class="text-2xl font-bold mb-6 text-accent-blue">
+                    <i class="fas fa-rocket mr-3"></i>Section 4: Advanced Memory Features
+                </h2>
+                <p class="text-gray-300 mb-6">Now let's explore the more sophisticated memory features that help your persona understand connections and provide intelligent responses.</p>
+
+                <div class="bg-dark-surface rounded-lg p-6 border border-dark-border mb-8">
+                    <h3 class="text-xl font-semibold mb-4 text-accent-green">Exploring the Knowledge Graph</h3>
+                    <p class="text-gray-300 mb-4">Your persona automatically builds a knowledge graph connecting related concepts. Let's explore it.</p>
+                    <div class="code-block p-4 rounded-lg">
+                        <pre><code class="language-text">Please use the explore_knowledge_graph tool for my "Study Buddy" persona:
+
+Query: "chemistry"
+Limit: 8
+Include Related: true
+Max Depth: 2</code></pre>
+                    </div>
+                </div>
+
+                <div class="bg-dark-surface rounded-lg p-6 border border-dark-border mb-8">
+                    <h3 class="text-xl font-semibold mb-4 text-accent-purple">Hybrid Memory Search (AI-Powered)</h3>
+                    <p class="text-gray-300 mb-4">This combines traditional search with AI understanding of context and relationships.</p>
+                    <div class="code-block p-4 rounded-lg">
+                        <pre><code class="language-text">Please use the hybrid_memory_search tool for my "Study Buddy" persona:
+
+Query: "help me understand difficult chemistry concepts using examples"
+Limit: 5
+Use Graph Expansion: true
+Graph Depth: 2</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Building Long-Term AI Relationships -->
+            <section>
+                <h2 class="text-2xl font-bold mb-6 text-accent-blue">
+                    <i class="fas fa-heart mr-3"></i>Building Long-Term AI Relationships
+                </h2>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="tip-box p-6 rounded-lg">
+                        <h3 class="font-semibold text-accent-green mb-3">
+                            <i class="fas fa-lightbulb mr-2"></i>Memory Addition Strategy
+                        </h3>
+                        <ul class="text-gray-300 text-sm space-y-2">
+                            <li><strong>Add preferences early:</strong> How you like to learn or work</li>
+                            <li><strong>Record important facts:</strong> Current projects or goals</li>
+                            <li><strong>Capture successful patterns:</strong> Teaching methods that work well</li>
+                        </ul>
+                    </div>
+
+                    <div class="tip-box p-6 rounded-lg">
+                        <h3 class="font-semibold text-accent-purple mb-3">
+                            <i class="fas fa-star mr-2"></i>Memory Importance Guidelines
+                        </h3>
+                        <ul class="text-gray-300 text-sm space-y-1">
+                            <li><strong>0.9-1.0:</strong> Critical personal information</li>
+                            <li><strong>0.7-0.8:</strong> Important learning patterns</li>
+                            <li><strong>0.5-0.6:</strong> Useful context and background</li>
+                            <li><strong>0.3-0.4:</strong> Conversational details</li>
+                            <li><strong>0.1-0.2:</strong> Temporary information</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="bg-dark-surface rounded-lg p-6 border border-dark-border mt-6">
+                    <h3 class="text-xl font-semibold mb-4 text-accent-blue">Regular Memory Maintenance</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-semibold text-accent-green mb-2">📅 Weekly:</h4>
+                            <p class="text-gray-300 text-sm">Review new memories with search queries, check for duplicates</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-accent-blue mb-2">📅 Monthly:</h4>
+                            <p class="text-gray-300 text-sm">Run cleanup on old conversation memories, analyze memory stats</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-accent-purple mb-2">📅 Quarterly:</h4>
+                            <p class="text-gray-300 text-sm">Examine knowledge graph growth, update important memories</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-accent-yellow mb-2">📅 Annually:</h4>
+                            <p class="text-gray-300 text-sm">Major cleanup and reorganization, archive old projects</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- What You've Accomplished -->
+            <section>
+                <h2 class="text-2xl font-bold mb-6 text-accent-blue">
+                    <i class="fas fa-trophy mr-3"></i>What You've Accomplished
+                </h2>
+                <div class="exercise-box p-8 rounded-lg text-center">
+                    <h3 class="text-2xl font-bold mb-4 gradient-text">🎉 Congratulations!</h3>
+                    <p class="text-xl text-gray-300 mb-6">You're now a persona memory expert!</p>
+                    
+                    <div class="text-left max-w-2xl mx-auto">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <ul class="space-y-2">
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-accent-green mr-3"></i>
+                                    Understand memory types and when to use each one
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-accent-green mr-3"></i>
+                                    Can add memories manually with appropriate importance levels
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-accent-green mr-3"></i>
+                                    Master memory search from basic to AI-powered search
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-accent-green mr-3"></i>
+                                    Record and review conversations effectively
+                                </li>
+                            </ul>
+                            <ul class="space-y-2">
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-accent-green mr-3"></i>
+                                    Maintain memory quality through cleanup and organization
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-accent-green mr-3"></i>
+                                    Explore knowledge graphs to understand connections
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-accent-green mr-3"></i>
+                                    Use advanced hybrid search capabilities
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-accent-green mr-3"></i>
+                                    Build effective long-term relationships with AI
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- The Power of Memory Management -->
+            <section>
+                <h2 class="text-2xl font-bold mb-6 text-accent-blue">
+                    <i class="fas fa-magic mr-3"></i>The Power of Memory Management
+                </h2>
+                <div class="tip-box p-6 rounded-lg">
+                    <h3 class="font-semibold text-accent-green mb-4">
+                        <i class="fas fa-brain mr-2"></i>Remember: Persona memories transform AI from a helpful tool into a genuine learning and working partnership.
+                    </h3>
+                    <p class="text-gray-300 mb-4">The AI assistants you build relationships with through memory management become:</p>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <ul class="space-y-2">
+                            <li class="flex items-start text-gray-300">
+                                <i class="fas fa-user-friends text-accent-blue mr-3 mt-1 text-sm"></i>
+                                <div><strong>Personalized experts</strong> who understand your unique needs and preferences</div>
+                            </li>
+                            <li class="flex items-start text-gray-300">
+                                <i class="fas fa-handshake text-accent-purple mr-3 mt-1 text-sm"></i>
+                                <div><strong>Learning partners</strong> who build on past successes and avoid repeated failures</div>
+                            </li>
+                        </ul>
+                        <ul class="space-y-2">
+                            <li class="flex items-start text-gray-300">
+                                <i class="fas fa-archive text-accent-green mr-3 mt-1 text-sm"></i>
+                                <div><strong>Institutional memory</strong> that captures and preserves valuable insights over time</div>
+                            </li>
+                            <li class="flex items-start text-gray-300">
+                                <i class="fas fa-chart-line text-accent-yellow mr-3 mt-1 text-sm"></i>
+                                <div><strong>Evolving collaborators</strong> who grow more helpful as your relationship deepens</div>
+                            </li>
+                        </ul>
+                    </div>
+                    <p class="text-gray-300 mt-4 text-center">
+                        The time you invest in memory management pays dividends in every future interaction.
+                    </p>
+                </div>
+            </section>
+
+            <!-- Conclusion -->
+            <section>
+                <h2 class="text-2xl font-bold mb-6 text-accent-blue">
+                    <i class="fas fa-flag-checkered mr-3"></i>Conclusion
+                </h2>
+                <div class="exercise-box p-8 rounded-lg text-center">
+                    <h3 class="text-2xl font-bold mb-4 gradient-text">🎊 You're now ready to harness the power of AI memory management!</h3>
+                    
+                    <div class="text-left max-w-2xl mx-auto mb-6">
+                        <p class="text-gray-300 mb-4">You've learned:</p>
+                        <ul class="list-disc list-inside text-gray-300 space-y-2">
+                            <li>When and why to use memory management vs single-conversation AI</li>
+                            <li>How to add, search, and organize persona memories effectively</li>
+                            <li>How to record and manage conversation history</li>
+                            <li>How to use advanced features like knowledge graphs and hybrid search</li>
+                            <li>Best practices for building long-term AI relationships</li>
+                        </ul>
+                    </div>
+                    
+                    <p class="text-xl text-gray-300 mb-6">
+                        🚀 <strong>Start building those memories</strong> and watch your AI relationships flourish! Whether you're studying, creating, 
+                        problem-solving, or learning new skills, you now have the power to create AI assistants that truly know and understand you.
+                    </p>
+                    
+                    <p class="text-2xl gradient-text font-bold">Build amazing things with your AI memory partners! 🧠✨</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Navigation to Next Lesson -->
+    <section class="py-12 px-4 bg-dark-surface/50">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex justify-between items-center">
+                <a href="persona-creation.html" class="flex items-center text-accent-blue hover:text-accent-blue/80 transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i>Previous: Creating Custom Personas
+                </a>
+                <a href="multi-step-reasoning.html" class="flex items-center text-accent-green hover:text-accent-green/80 transition-colors">
+                    Next: Multi-Step Reasoning <i class="fas fa-arrow-right ml-2"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark-surface border-t border-dark-border py-8 px-4">
+        <div class="max-w-4xl mx-auto text-center">
+            <p class="text-gray-400 text-sm">
+                Need help with memory management? Ask in the chat: "How do I [specific memory task]?" and your memory-enhanced personas will guide you with their knowledge of your preferences and past experiences.
+            </p>
+        </div>
+    </footer>
+</body>
+</html>
