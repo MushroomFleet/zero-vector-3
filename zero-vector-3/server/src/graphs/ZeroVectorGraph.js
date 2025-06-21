@@ -2,6 +2,7 @@ const { StateGraph } = require('@langchain/langgraph');
 const { END } = require('@langchain/langgraph');
 const { ZeroVectorStateManager } = require('../state/ZeroVectorState');
 const { logger, logError, logWorkflow, createTimer } = require('../utils/logger');
+const { z } = require('zod');
 
 // Import Phase 3 components
 const MemoryLifecycleManager = require('../services/MemoryLifecycleManager');
@@ -21,7 +22,10 @@ class ZeroVectorGraph {
     this.hybridRetrievalAgent = components.hybridRetrievalAgent;
     this.personaMemoryAgent = components.personaMemoryAgent;
     this.reasoningAgent = components.reasoningAgent;
-    this.approvalAgent = components.approvalAgent || new HumanApprovalAgent(components.approvalService);
+    this.approvalAgent = components.approvalAgent || new HumanApprovalAgent(
+      components.approvalService, 
+      components.config?.humanInTheLoop || {}
+    );
     this.checkpointer = components.checkpointer;
     this.config = components.config || {};
     
@@ -47,10 +51,28 @@ class ZeroVectorGraph {
     const timer = createTimer('create_zero_vector_graph');
     
     try {
-      // Create state graph
-      const graph = new StateGraph({
-        stateSchema: this.getStateSchema()
+      // Create Zod schema for LangGraph StateGraph
+      const stateSchema = z.object({
+        messages: z.array(z.any()).default([]),
+        active_persona: z.string().optional(),
+        user_profile: z.object({}).optional(),
+        vector_results: z.array(z.any()).default([]),
+        graph_relationships: z.array(z.any()).default([]),
+        memory_context: z.object({}).optional(),
+        workflow_context: z.object({}).optional(),
+        approval_context: z.object({}).optional(),
+        requires_approval: z.boolean().default(false),
+        execution_metadata: z.object({}).optional(),
+        features: z.object({}).default({}),
+        errors: z.array(z.any()).default([]),
+        memory_maintenance_required: z.boolean().default(false),
+        memory_maintenance_reason: z.string().optional(),
+        memory_maintenance_results: z.object({}).optional(),
+        persona_context: z.object({}).optional()
       });
+
+      // Create state graph with proper Zod schema as first parameter
+      const graph = new StateGraph(stateSchema);
 
       // Add agent nodes
       graph.addNode("retrieve", this.retrieveNode.bind(this));
@@ -1002,26 +1024,25 @@ class ZeroVectorGraph {
   }
 
   getStateSchema() {
-    // Return the state schema for LangGraph
-    // This would typically be converted from Zod to LangGraph's expected format
+    // Return a simple object schema that LangGraph can handle
+    // Using a basic object structure instead of complex type definitions
     return {
-      messages: { type: 'array', default: [] },
-      active_persona: { type: 'string', optional: true },
-      user_profile: { type: 'object' },
-      vector_results: { type: 'array', default: [] },
-      graph_relationships: { type: 'array', default: [] },
-      memory_context: { type: 'object', optional: true },
-      workflow_context: { type: 'object', optional: true },
-      approval_context: { type: 'object', optional: true },
-      requires_approval: { type: 'boolean', default: false },
-      execution_metadata: { type: 'object', optional: true },
-      features: { type: 'object', default: {} },
-      errors: { type: 'array', default: [] },
-      // Phase 3 additions
-      memory_maintenance_required: { type: 'boolean', default: false },
-      memory_maintenance_reason: { type: 'string', optional: true },
-      memory_maintenance_results: { type: 'object', optional: true },
-      persona_context: { type: 'object', optional: true }
+      messages: [],
+      active_persona: '',
+      user_profile: {},
+      vector_results: [],
+      graph_relationships: [],
+      memory_context: {},
+      workflow_context: {},
+      approval_context: {},
+      requires_approval: false,
+      execution_metadata: {},
+      features: {},
+      errors: [],
+      memory_maintenance_required: false,
+      memory_maintenance_reason: '',
+      memory_maintenance_results: {},
+      persona_context: {}
     };
   }
 }

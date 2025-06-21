@@ -348,7 +348,16 @@ class RedisManager {
       }
 
       const keyCount = await this.client.dbsize();
-      const memory = await this.client.memory('usage', `${this.config.keyPrefix}*`);
+      
+      // Use INFO memory instead of MEMORY USAGE for compatibility
+      let memoryUsage = 0;
+      try {
+        const memoryInfo = await this.client.info('memory');
+        const parsedMemory = this.parseInfo(memoryInfo);
+        memoryUsage = parsedMemory.used_memory || 0;
+      } catch (memoryError) {
+        logger.debug('Could not get memory usage info', { error: memoryError.message });
+      }
       
       // Get key distribution by prefix
       const keys = await this.client.keys(`${this.config.keyPrefix}*`);
@@ -361,7 +370,7 @@ class RedisManager {
 
       return {
         total_keys: keyCount,
-        memory_usage: memory,
+        memory_usage: memoryUsage,
         keys_by_type: keysByType,
         sample_size: Math.min(keys.length, 1000),
         total_sampled: keys.length

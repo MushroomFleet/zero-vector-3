@@ -1,6 +1,38 @@
 const { VectorStore } = require('@langchain/core/vectorstores');
 const { Document } = require('@langchain/core/documents');
+const { Embeddings } = require('@langchain/core/embeddings');
 const { logger, logError } = require('../utils/logger');
+
+/**
+ * Zero-Vector Embeddings Wrapper
+ * Wraps Zero-Vector embedding service to work with LangChain
+ */
+class ZeroVectorEmbeddings extends Embeddings {
+  constructor(embeddingService) {
+    super({});
+    this.embeddingService = embeddingService;
+  }
+
+  async embedDocuments(documents) {
+    const embeddings = [];
+    for (const doc of documents) {
+      const result = await this.embeddingService.generateEmbedding(doc, {
+        provider: this.embeddingService.defaultProvider,
+        useCache: true
+      });
+      embeddings.push(result.vector);
+    }
+    return embeddings;
+  }
+
+  async embedQuery(query) {
+    const result = await this.embeddingService.generateEmbedding(query, {
+      provider: this.embeddingService.defaultProvider,
+      useCache: true
+    });
+    return result.vector;
+  }
+}
 
 /**
  * LangChain VectorStore Adapter
@@ -8,14 +40,20 @@ const { logger, logError } = require('../utils/logger');
  */
 class LangChainVectorStoreAdapter extends VectorStore {
   constructor(hybridVectorStore, embeddingService) {
-    super(embeddingService, {});
+    const embeddings = new ZeroVectorEmbeddings(embeddingService);
+    super(embeddings, {});
     this.hybridVectorStore = hybridVectorStore;
     this.embeddingService = embeddingService;
+    this.embeddings = embeddings;
     
     logger.info('LangChain VectorStore adapter initialized', {
       vectorStoreType: hybridVectorStore.constructor.name,
       graphEnabled: hybridVectorStore.graphEnabled || false
     });
+  }
+
+  _vectorstoreType() {
+    return 'zero-vector-hybrid';
   }
 
   /**

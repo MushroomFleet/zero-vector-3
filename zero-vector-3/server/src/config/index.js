@@ -207,6 +207,39 @@ const config = {
     workflowCacheTtl: 3600, // 1 hour
     enableWorkflowMetrics: true,
     maxConcurrentWorkflows: 100
+  },
+
+  // Performance cache configuration
+  cache: {
+    redis: {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT) || 6379,
+      db: parseInt(process.env.REDIS_CACHE_DB) || 1,
+      password: process.env.REDIS_PASSWORD || undefined,
+      keyPrefix: process.env.REDIS_KEY_PREFIX || 'zv3:',
+      connectTimeout: parseInt(process.env.REDIS_CONNECT_TIMEOUT) || 10000,
+      commandTimeout: parseInt(process.env.REDIS_COMMAND_TIMEOUT) || 5000
+    },
+    ttl: {
+      embeddings: parseInt(process.env.CACHE_TTL_EMBEDDINGS) || 86400, // 24 hours
+      search_results: parseInt(process.env.CACHE_TTL_SEARCH_RESULTS) || 3600, // 1 hour
+      persona_context: parseInt(process.env.CACHE_TTL_PERSONA_CONTEXT) || 1800, // 30 minutes
+      user_profile: parseInt(process.env.CACHE_TTL_USER_PROFILE) || 3600, // 1 hour
+      graph_relationships: parseInt(process.env.CACHE_TTL_GRAPH_RELATIONSHIPS) || 7200, // 2 hours
+      memory_queries: parseInt(process.env.CACHE_TTL_MEMORY_QUERIES) || 900 // 15 minutes
+    },
+    limits: {
+      max_embedding_cache_size: parseInt(process.env.CACHE_MAX_EMBEDDING_SIZE) || 10000,
+      max_search_cache_size: parseInt(process.env.CACHE_MAX_SEARCH_SIZE) || 5000,
+      max_key_length: parseInt(process.env.CACHE_MAX_KEY_LENGTH) || 250,
+      max_value_size: parseInt(process.env.CACHE_MAX_VALUE_SIZE) || 1048576 // 1MB
+    },
+    strategies: {
+      lru_enabled: process.env.CACHE_LRU_ENABLED !== 'false',
+      compression_enabled: process.env.CACHE_COMPRESSION_ENABLED !== 'false',
+      batch_operations: process.env.CACHE_BATCH_OPERATIONS !== 'false',
+      background_refresh: process.env.CACHE_BACKGROUND_REFRESH !== 'false'
+    }
   }
 };
 
