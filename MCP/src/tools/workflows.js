@@ -33,7 +33,7 @@ const executeWorkflow = {
       workflow_type: {
         type: 'string',
         description: 'Type of workflow to execute',
-        enum: ['zero_vector_conversation', 'multi_step_reasoning', 'human_approval', 'memory_maintenance'],
+        enum: ['zero_vector_conversation', 'multi_step_reasoning', 'human_approval', 'memory_maintenance', 'cross_persona_coordination'],
         default: 'zero_vector_conversation'
       },
       config: {
