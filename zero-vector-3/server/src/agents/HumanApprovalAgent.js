@@ -59,6 +59,12 @@ const RiskAssessmentConfigSchema = z.object({
 class HumanApprovalAgent {
   constructor(approvalService, config = {}) {
     this.approvalService = approvalService;
+    
+    // Debug what config is being received
+    console.log('DEBUG HumanApprovalAgent config received:', JSON.stringify(config, null, 2));
+    console.log('DEBUG config.risk_thresholds:', config.risk_thresholds);
+    console.log('DEBUG typeof config.risk_thresholds:', typeof config.risk_thresholds);
+    
     this.config = RiskAssessmentConfigSchema.parse(config);
     this.pendingApprovals = new Map();
     this.approvalStats = {

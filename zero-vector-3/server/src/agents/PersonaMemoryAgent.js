@@ -19,10 +19,14 @@ class PersonaMemoryAgent {
       memoryRetrievals: 0
     };
     
+    // Bind the __call__ method to ensure proper context
+    this.__call__ = this.__call__.bind(this);
+    
     logger.info('PersonaMemoryAgent initialized', {
       availablePersonas: Object.keys(this.personaProfiles),
       memoryManagerType: hybridMemoryManager.constructor.name,
-      llmServiceType: llmService?.constructor.name || 'not provided'
+      llmServiceType: llmService?.constructor.name || 'not provided',
+      callMethodBound: typeof this.__call__ === 'function'
     });
   }
 
@@ -31,6 +35,13 @@ class PersonaMemoryAgent {
    * Implements persona-aware response generation with memory integration
    */
   async __call__(state) {
+    logger.debug('PersonaMemoryAgent.__call__ invoked', {
+      hasState: !!state,
+      stateKeys: state ? Object.keys(state) : 'no state',
+      activePersona: state?.active_persona,
+      messagesLength: state?.messages?.length || 0
+    });
+
     const startTime = Date.now();
     let memoriesRetrieved = 0;
     let personaConsistencyScore = 0;
@@ -60,12 +71,19 @@ class PersonaMemoryAgent {
       });
 
       // Stage 1: Load or Create Persona Profile
+      logger.debug('Loading persona profile', { personaId, userId });
       const personaProfile = await this.loadPersonaProfile(personaId, userId);
       if (!personaProfile) {
         throw new Error(`Persona profile not found: ${personaId}`);
       }
+      logger.debug('Persona profile loaded successfully', { 
+        personaId: personaProfile.id, 
+        name: personaProfile.name,
+        hasConfig: !!personaProfile.config
+      });
 
       // Stage 2: Retrieve Persona-Specific Memories
+      logger.debug('Retrieving persona memories', { personaId, queryLength: query.length });
       const personaMemories = await this.retrievePersonaMemories(personaId, userId, query, {
         limit: 10,
         includeConversationHistory: true,
@@ -73,6 +91,7 @@ class PersonaMemoryAgent {
         maxAge: state.user_profile?.preferences?.maxMemoryAge
       });
       memoriesRetrieved = personaMemories.length;
+      logger.debug('Persona memories retrieved', { memoriesCount: memoriesRetrieved });
 
       // Stage 3: Build Comprehensive Persona Context
       const personaContext = await this.buildPersonaContext(
@@ -85,6 +104,15 @@ class PersonaMemoryAgent {
           currentQuery: query
         }
       );
+
+      logger.debug('Built persona context', {
+        personaId,
+        hasPersonaContext: !!personaContext,
+        hasPersonaProperty: !!personaContext?.persona,
+        hasPersonaProfile: !!personaContext?.persona?.profile,
+        personaProfileId: personaContext?.persona?.profile?.id,
+        contextKeys: personaContext ? Object.keys(personaContext) : 'no context'
+      });
 
       // Stage 4: Generate Persona-Specific Response
       const response = await this.generatePersonaResponse({
@@ -423,6 +451,13 @@ class PersonaMemoryAgent {
    */
   async generatePersonaResponse(options) {
     try {
+      logger.debug('generatePersonaResponse called with options', {
+        hasOptions: !!options,
+        hasPersonaContext: !!options?.personaContext,
+        hasQuery: !!options?.query,
+        optionsKeys: options ? Object.keys(options) : 'no options'
+      });
+
       const {
         personaContext,
         query,
@@ -431,6 +466,13 @@ class PersonaMemoryAgent {
         userProfile,
         options: genOptions = {}
       } = options;
+
+      logger.debug('destructured options', {
+        hasPersonaContext: !!personaContext,
+        hasQuery: !!query,
+        personaContextKeys: personaContext ? Object.keys(personaContext) : 'no context',
+        personaContextHasPersona: !!personaContext?.persona
+      });
 
       // Build prompt with persona context
       const prompt = this.buildPersonaPrompt(personaContext, query, {
@@ -442,12 +484,32 @@ class PersonaMemoryAgent {
       // Generate response using LLM service
       let response;
       if (this.llmService) {
-        response = await this.llmService.generateResponse(prompt, {
-          maxTokens: genOptions.maxTokens || 1000,
-          temperature: genOptions.temperature || 0.7,
-          personaId: personaContext.persona.profile.id
+        logger.debug('Calling LLM service with prompt', {
+          promptLength: prompt.length,
+          personaId: personaContext.persona.profile.id,
+          query: query.substring(0, 50)
         });
+        
+        try {
+          response = await this.llmService.generateResponse(prompt, {
+            maxTokens: genOptions.maxTokens || 1000,
+            temperature: genOptions.temperature || 0.7,
+            personaId: personaContext.persona.profile.id
+          });
+          
+          logger.debug('LLM service response received', {
+            responseLength: response.length,
+            personaId: personaContext.persona.profile.id
+          });
+        } catch (error) {
+          logger.error('LLM service error, falling back', {
+            error: error.message,
+            personaId: personaContext.persona.profile.id
+          });
+          response = this.generateFallbackResponse(personaContext, query);
+        }
       } else {
+        logger.debug('No LLM service available, using fallback');
         // Fallback: Create a structured response based on context
         response = this.generateFallbackResponse(personaContext, query);
       }

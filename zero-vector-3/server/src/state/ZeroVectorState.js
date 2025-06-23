@@ -289,6 +289,66 @@ class ZeroVectorStateManager {
   }
 
   /**
+   * Update persona coordination context
+   */
+  static updatePersonaCoordination(state, coordinationData) {
+    return {
+      ...state,
+      persona_coordination: {
+        ...state.persona_coordination,
+        ...coordinationData
+      }
+    };
+  }
+
+  /**
+   * Add persona handoff record
+   */
+  static addPersonaHandoff(state, handoff) {
+    return {
+      ...state,
+      persona_coordination: {
+        ...state.persona_coordination,
+        handoffs: [
+          ...(state.persona_coordination?.handoffs || []),
+          handoff
+        ]
+      }
+    };
+  }
+
+  /**
+   * Switch active persona with coordination tracking
+   */
+  static switchPersona(state, newPersona, reason = 'manual_switch') {
+    const handoff = {
+      from: state.active_persona,
+      to: newPersona,
+      reason,
+      timestamp: new Date().toISOString(),
+      context_preserved: true
+    };
+
+    return {
+      ...state,
+      active_persona: newPersona,
+      persona_coordination: {
+        ...state.persona_coordination,
+        handoffs: [
+          ...(state.persona_coordination?.handoffs || []),
+          handoff
+        ],
+        active_personas: [
+          ...new Set([
+            ...(state.persona_coordination?.active_personas || []),
+            newPersona
+          ])
+        ]
+      }
+    };
+  }
+
+  /**
    * Add error to state
    */
   static addError(state, error) {

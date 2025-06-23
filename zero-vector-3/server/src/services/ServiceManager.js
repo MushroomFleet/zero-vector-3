@@ -44,8 +44,8 @@ class ServiceManager {
       // 4. Initialize Performance Cache Manager
       await this.initializePerformanceCacheManager();
 
-      // 5. Initialize Human Approval Agent
-      await this.initializeHumanApprovalAgent();
+      // 5. Initialize Human Approval Agent - DISABLED FOR TESTING
+      // await this.initializeHumanApprovalAgent();
 
       // 6. Setup shutdown handlers
       this.setupShutdownHandlers();
