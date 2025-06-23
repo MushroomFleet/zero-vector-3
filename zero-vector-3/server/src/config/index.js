@@ -124,6 +124,24 @@ const config = {
 
   // Security configuration
   security: {
+    cors: {
+      origin: process.env.CORS_ORIGINS 
+        ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
+        : process.env.CORS_ORIGIN 
+          ? [process.env.CORS_ORIGIN]
+          : (process.env.NODE_ENV === 'production' 
+            ? ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"]
+            : ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"]),
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: [
+        "Content-Type",
+        "Authorization", 
+        "X-API-Key",
+        "User-Agent"
+      ]
+    },
+    // Maintain backward compatibility
     corsOrigin: process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' ? false : true),
     rateLimiting: {
       windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes

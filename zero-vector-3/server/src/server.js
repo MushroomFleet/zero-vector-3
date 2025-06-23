@@ -88,10 +88,7 @@ class ZeroVector3Server {
     }
 
     // CORS
-    this.app.use(cors({
-      origin: config.security.corsOrigin,
-      credentials: true
-    }));
+    this.app.use(cors(config.security.cors));
 
     // Compression
     this.app.use(compression());
