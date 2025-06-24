@@ -1,8 +1,8 @@
 # Zero-Vector MCP Server v3.0
 
-A comprehensive Model Context Protocol (MCP) server for Zero-Vector's hybrid vector-graph persona and memory management system with advanced LangGraph workflow capabilities. This v3.0 implementation combines semantic vector search with knowledge graph capabilities and sophisticated multi-agent workflow orchestration, featuring 24 fully operational specialized tools including LangGraph workflow management and human-in-the-loop processing.
+A comprehensive Model Context Protocol (MCP) server for Zero-Vector's hybrid vector-graph persona and memory management system with advanced LangGraph workflow capabilities. This v3.0 implementation combines semantic vector search with knowledge graph capabilities and sophisticated multi-agent workflow orchestration, featuring 25 fully operational specialized tools including LangGraph workflow management and human-in-the-loop processing.
 
-**Status: All 24 tools fully functional and tested ✅**
+**Status: All 25 tools fully functional and tested ✅**
 
 ## Features
 
@@ -21,11 +21,12 @@ A comprehensive Model Context Protocol (MCP) server for Zero-Vector's hybrid vec
 - **get_conversation_history** - Retrieve complete conversation history with context
 - **cleanup_persona_memories** - Clean up old or low-importance memories and entities
 
-### Graph Management (4 tools)
+### Graph Management (5 tools)
 - **explore_knowledge_graph** - Search entities and traverse relationships in persona knowledge graphs
 - **hybrid_memory_search** - Enhanced memory search combining vector similarity with graph expansion
 - **get_graph_context** - Retrieve detailed context and relationships for specific entities
 - **get_graph_stats** - Comprehensive knowledge graph statistics and health metrics
+- **get_persona_relationships** - Get all relationships in a persona's knowledge graph with filtering and pagination
 
 ### LangGraph Workflow Management (6 tools) - NEW in v3.0
 - **execute_workflow** - Execute LangGraph workflows with custom configuration and persona-specific processing
@@ -94,7 +95,7 @@ A comprehensive Model Context Protocol (MCP) server for Zero-Vector's hybrid vec
 # Test connection to both Zero-Vector servers
 npm run test:connection
 
-# List all available tools (24 total)
+# List all available tools (25 total)
 npm run list:tools
 
 # Check version
@@ -167,6 +168,19 @@ Add to your Cline MCP configuration:
   "useGraphExpansion": true,
   "graphDepth": 2,
   "threshold": 0.7
+}
+```
+
+#### Get Persona Relationships (NEW)
+```javascript
+{
+  "personaId": "a7e313ad-6ead-4310-ba98-e267e96cb552",
+  "limit": 20,
+  "offset": 0,
+  "sortBy": "strength",
+  "sortOrder": "desc",
+  "includeEntityDetails": true,
+  "minStrength": 0.5
 }
 ```
 
@@ -288,7 +302,7 @@ Add to your Cline MCP configuration:
 ```
 ┌─────────────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
 │   External AI       │    │   MCP Server v3.0    │    │   Zero-Vector v3    │
-│   Systems/Clients   │────│   (24 Tools)         │────│   (LangGraph)       │
+│   Systems/Clients   │────│   (25 Tools)         │────│   (LangGraph)       │
 └─────────────────────┘    └──────────────────────┘    └─────────────────────┘
                                       │
                            ┌──────────────────────┐
@@ -340,13 +354,14 @@ Query → MCP Server → Zero-Vector v3 → LangGraph Workflow → Agents → Re
 ## Technical Implementation
 
 ### MCP Protocol Compliance
-All 24 tools implement standardized MCP response format:
+All 25 tools implement standardized MCP response format:
 - **Consistent Response Structure** - All tools return proper `{ content: [{ type: 'text', text: '...' }] }` format
 - **Error Standardization** - Unified error handling with `isError: true` flag for failed operations
 - **Validation Integration** - Input validation with detailed error messages and suggestions
 - **Protocol Compatibility** - Full compliance with MCP SDK requirements and validation schemas
 
 ### Recent Improvements
+- ✅ **New Graph Tool Added** - Added `get_persona_relationships` for comprehensive relationship browsing
 - ✅ **Workflow Tools Validation Fix** - Resolved MCP response format issues for all 6 LangGraph workflow tools
 - ✅ **Response Format Standardization** - All tools now use consistent MCP-compliant response structure
 - ✅ **Enhanced Error Messages** - Improved error handling with actionable feedback and troubleshooting guidance
@@ -390,6 +405,7 @@ This v3.0 version adds:
 - ✅ **Performance Monitoring** - Real-time metrics and analytics
 - ✅ **Thread Continuity** - Persistent conversation state across sessions
 - ✅ **Multi-Server Support** - Seamless integration between v2 and v3 systems
+- ✅ **Graph Relationship Management** - Added comprehensive relationship browsing
 - ✅ **Backward Compatible** - All v2.0 tools work unchanged with added capabilities
 - ✅ **Production Ready** - Authentication, monitoring, and enterprise features
 
@@ -429,13 +445,13 @@ curl http://localhost:3001/health
 ```
 MCP/
 ├── src/
-│   ├── index.js          # Main MCP server (24 tools)
+│   ├── index.js          # Main MCP server (25 tools)
 │   ├── config.js         # Multi-server configuration
 │   ├── apiClient.js      # Multi-server HTTP client
 │   ├── tools/
 │   │   ├── personas.js   # Persona management (5 tools)
 │   │   ├── memories.js   # Memory operations (6 tools)
-│   │   ├── graph.js      # Graph management (4 tools)
+│   │   ├── graph.js      # Graph management (5 tools)
 │   │   ├── workflows.js  # LangGraph workflows (6 tools) - NEW
 │   │   └── utilities.js  # System utilities (3 tools)
 │   └── utils/
@@ -482,6 +498,6 @@ For issues and questions:
 
 ## Version History
 
-- **v3.0** - LangGraph workflow integration, multi-server support, 24 tools
+- **v3.0** - LangGraph workflow integration, multi-server support, 25 tools
 - **v2.0** - Hybrid vector-graph capabilities, entity extraction, 18 tools
 - **v1.0** - Basic persona and memory management, 14 tools
