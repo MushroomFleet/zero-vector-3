@@ -1167,4 +1167,308 @@ router.get('/:id/graph/stats', asyncHandler(async (req, res) => {
   }
 }));
 
+/**
+ * Get all relationships in persona's knowledge graph
+ * GET /api/personas/:id/graph/relationships
+ */
+router.get('/:id/graph/relationships', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const {
+    limit = 50,
+    offset = 0,
+    relationshipTypes,
+    entityTypes,
+    minStrength = 0.0,
+    maxStrength = 1.0,
+    includeEntityDetails = true,
+    sortBy = 'strength',
+    sortOrder = 'desc'
+  } = req.query;
+
+  // Validate input parameters
+  if (parseInt(limit) < 1 || parseInt(limit) > 500) {
+    throw new ValidationError('Limit must be between 1 and 500');
+  }
+
+  if (parseInt(offset) < 0) {
+    throw new ValidationError('Offset must be 0 or greater');
+  }
+
+  if (parseFloat(minStrength) < 0 || parseFloat(minStrength) > 1) {
+    throw new ValidationError('Min strength must be between 0 and 1');
+  }
+
+  if (parseFloat(maxStrength) < 0 || parseFloat(maxStrength) > 1) {
+    throw new ValidationError('Max strength must be between 0 and 1');
+  }
+
+  if (parseFloat(minStrength) > parseFloat(maxStrength)) {
+    throw new ValidationError('Min strength cannot be greater than max strength');
+  }
+
+  const validSortFields = ['strength', 'created_at', 'updated_at', 'relationship_type'];
+  if (!validSortFields.includes(sortBy)) {
+    throw new ValidationError(`Sort by must be one of: ${validSortFields.join(', ')}`);
+  }
+
+  const validSortOrders = ['asc', 'desc'];
+  if (!validSortOrders.includes(sortOrder.toLowerCase())) {
+    throw new ValidationError('Sort order must be either "asc" or "desc"');
+  }
+
+  try {
+    // Verify persona ownership
+    await req.personaMemoryManager.getPersona(id, req.user.id);
+
+    // Get all entities for the persona
+    const entities = await req.database.getEntitiesByPersona(id, { limit: 1000 });
+
+    if (entities.length === 0) {
+      logger.info('No entities found for persona', { personaId: id, userId: req.user.id });
+      return res.json({
+        status: 'success',
+        data: {
+          personaId: id,
+          relationships: [],
+          meta: {
+            total: 0,
+            returned: 0,
+            offset: parseInt(offset),
+            hasMore: false,
+            statistics: {
+              relationshipTypes: [],
+              entityTypes: [],
+              avgStrength: 0,
+              strongRelationships: 0
+            }
+          },
+          options: {
+            limit: parseInt(limit),
+            offset: parseInt(offset),
+            relationshipTypes: relationshipTypes ? relationshipTypes.split(',') : null,
+            entityTypes: entityTypes ? entityTypes.split(',') : null,
+            minStrength: parseFloat(minStrength),
+            maxStrength: parseFloat(maxStrength),
+            includeEntityDetails: includeEntityDetails === 'true',
+            sortBy,
+            sortOrder: sortOrder.toLowerCase()
+          }
+        }
+      });
+    }
+
+    // Collect all relationships from all entities
+    const allRelationships = [];
+    const entityMap = new Map();
+    
+    // Create entity lookup map
+    entities.forEach(entity => {
+      entityMap.set(entity.id, entity);
+    });
+
+    // Get relationships for each entity
+    for (const entity of entities) {
+      try {
+        const entityRelationships = await req.database.getEntityRelationships(entity.id, 'both', 1000);
+        
+        // Filter relationships to only include those between entities of this persona
+        const personaRelationships = entityRelationships.filter(rel => {
+          const sourceInPersona = entityMap.has(rel.source_entity_id);
+          const targetInPersona = entityMap.has(rel.target_entity_id);
+          return sourceInPersona && targetInPersona;
+        });
+
+        allRelationships.push(...personaRelationships);
+      } catch (error) {
+        logger.warn('Failed to get relationships for entity', {
+          entityId: entity.id,
+          personaId: id,
+          error: error.message
+        });
+      }
+    }
+
+    // Deduplicate relationships (since we get both directions)
+    const uniqueRelationships = [];
+    const seen = new Set();
+    
+    for (const rel of allRelationships) {
+      const key = `${rel.id}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueRelationships.push(rel);
+      }
+    }
+
+    // Apply filters
+    let filteredRelationships = uniqueRelationships;
+
+    // Filter by relationship types
+    if (relationshipTypes) {
+      const typeArray = relationshipTypes.split(',').map(t => t.trim());
+      filteredRelationships = filteredRelationships.filter(rel => 
+        typeArray.includes(rel.relationship_type)
+      );
+    }
+
+    // Filter by entity types (either source or target entity must match)
+    if (entityTypes) {
+      const typeArray = entityTypes.split(',').map(t => t.trim());
+      filteredRelationships = filteredRelationships.filter(rel => {
+        const sourceEntity = entityMap.get(rel.source_entity_id);
+        const targetEntity = entityMap.get(rel.target_entity_id);
+        return (sourceEntity && typeArray.includes(sourceEntity.type)) ||
+               (targetEntity && typeArray.includes(targetEntity.type));
+      });
+    }
+
+    // Filter by strength range
+    filteredRelationships = filteredRelationships.filter(rel => 
+      rel.strength >= parseFloat(minStrength) && rel.strength <= parseFloat(maxStrength)
+    );
+
+    // Sort relationships
+    filteredRelationships.sort((a, b) => {
+      let aVal, bVal;
+      
+      switch (sortBy) {
+        case 'strength':
+          aVal = a.strength;
+          bVal = b.strength;
+          break;
+        case 'created_at':
+          aVal = new Date(a.created_at);
+          bVal = new Date(b.created_at);
+          break;
+        case 'updated_at':
+          aVal = new Date(a.updated_at);
+          bVal = new Date(b.updated_at);
+          break;
+        case 'relationship_type':
+          aVal = a.relationship_type;
+          bVal = b.relationship_type;
+          break;
+        default:
+          aVal = a.strength;
+          bVal = b.strength;
+      }
+
+      if (sortOrder.toLowerCase() === 'desc') {
+        return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
+      } else {
+        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      }
+    });
+
+    // Calculate statistics before pagination
+    const stats = {
+      relationshipTypes: [...new Set(filteredRelationships.map(r => r.relationship_type))],
+      entityTypes: [...new Set([
+        ...filteredRelationships.map(r => entityMap.get(r.source_entity_id)?.type).filter(Boolean),
+        ...filteredRelationships.map(r => entityMap.get(r.target_entity_id)?.type).filter(Boolean)
+      ])],
+      avgStrength: filteredRelationships.length > 0 
+        ? parseFloat((filteredRelationships.reduce((sum, r) => sum + r.strength, 0) / filteredRelationships.length).toFixed(3))
+        : 0,
+      strongRelationships: filteredRelationships.filter(r => r.strength > 0.8).length
+    };
+
+    // Apply pagination
+    const startIndex = parseInt(offset);
+    const endIndex = startIndex + parseInt(limit);
+    const paginatedRelationships = filteredRelationships.slice(startIndex, endIndex);
+
+    // Enrich with entity details if requested
+    const enrichedRelationships = paginatedRelationships.map(rel => {
+      const baseRelationship = {
+        id: rel.id,
+        relationshipType: rel.relationship_type,
+        strength: rel.strength,
+        context: rel.context,
+        properties: rel.properties || {},
+        createdAt: rel.created_at,
+        updatedAt: rel.updated_at
+      };
+
+      if (includeEntityDetails === 'true') {
+        const sourceEntity = entityMap.get(rel.source_entity_id);
+        const targetEntity = entityMap.get(rel.target_entity_id);
+
+        return {
+          ...baseRelationship,
+          sourceEntity: sourceEntity ? {
+            id: sourceEntity.id,
+            name: sourceEntity.name,
+            type: sourceEntity.type,
+            confidence: sourceEntity.confidence,
+            normalizedName: sourceEntity.normalized_name
+          } : { id: rel.source_entity_id, name: 'Unknown', type: 'UNKNOWN', confidence: 0 },
+          targetEntity: targetEntity ? {
+            id: targetEntity.id,
+            name: targetEntity.name,
+            type: targetEntity.type,
+            confidence: targetEntity.confidence,
+            normalizedName: targetEntity.normalized_name
+          } : { id: rel.target_entity_id, name: 'Unknown', type: 'UNKNOWN', confidence: 0 }
+        };
+      } else {
+        return {
+          ...baseRelationship,
+          sourceEntityId: rel.source_entity_id,
+          targetEntityId: rel.target_entity_id
+        };
+      }
+    });
+
+    const hasMore = endIndex < filteredRelationships.length;
+
+    logger.info('Persona graph relationships retrieved via API', {
+      personaId: id,
+      userId: req.user.id,
+      totalEntities: entities.length,
+      totalRelationships: uniqueRelationships.length,
+      filteredRelationships: filteredRelationships.length,
+      returned: enrichedRelationships.length,
+      offset: startIndex,
+      hasMore
+    });
+
+    res.json({
+      status: 'success',
+      data: {
+        personaId: id,
+        relationships: enrichedRelationships,
+        meta: {
+          total: filteredRelationships.length,
+          returned: enrichedRelationships.length,
+          offset: startIndex,
+          hasMore,
+          statistics: stats
+        },
+        options: {
+          limit: parseInt(limit),
+          offset: parseInt(offset),
+          relationshipTypes: relationshipTypes ? relationshipTypes.split(',') : null,
+          entityTypes: entityTypes ? entityTypes.split(',') : null,
+          minStrength: parseFloat(minStrength),
+          maxStrength: parseFloat(maxStrength),
+          includeEntityDetails: includeEntityDetails === 'true',
+          sortBy,
+          sortOrder: sortOrder.toLowerCase()
+        }
+      }
+    });
+
+  } catch (error) {
+    if (error.message.includes('not found') || error.message.includes('Access denied')) {
+      res.status(404).json({
+        status: 'error',
+        error: 'Persona not found'
+      });
+      return;
+    }
+    throw error;
+  }
+}));
+
 module.exports = router;
