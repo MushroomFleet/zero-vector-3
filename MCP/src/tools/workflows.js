@@ -276,6 +276,7 @@ async function executeWorkflowTool(args) {
         id: sanitizedArgs.user_id,
         preferences: sanitizedArgs.config
       },
+      workflow_type: sanitizedArgs.workflow_type, // Add at top level for route handler
       workflow_context: {
         workflow_type: sanitizedArgs.workflow_type,
         workflow_id: `workflow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -295,6 +296,7 @@ async function executeWorkflowTool(args) {
     }
 
     // Execute workflow via API (use V3 endpoint)
+    console.log('=== MCP TOOL: Making API request ===');
     const response = await makeRequest('/api/v3/langgraph/execute', {
       method: 'POST',
       body: JSON.stringify(requestPayload),
@@ -303,7 +305,14 @@ async function executeWorkflowTool(args) {
       }
     }, 'zeroVectorV3');
 
+    console.log('=== MCP TOOL: Got response ===', {
+      success: response.success,
+      hasData: !!response.data,
+      responseType: typeof response
+    });
+
     if (!response.success) {
+      console.log('=== MCP TOOL: Response failed ===', response);
       return {
         content: [{
           type: 'text',
@@ -313,28 +322,106 @@ async function executeWorkflowTool(args) {
       };
     }
 
-    // Format successful response
-    let resultText = `✅ **LangGraph Workflow Executed Successfully**\n\n`;
-    resultText += `🆔 **Workflow ID:** ${response.data.workflow_context?.workflow_id}\n`;
-    resultText += `🧵 **Thread ID:** ${response.data.thread_id || sanitizedArgs.thread_id}\n`;
-    resultText += `📊 **Status:** ${response.data.workflow_context?.current_step || 'completed'}\n`;
-    resultText += `🤖 **Persona:** ${sanitizedArgs.persona}\n`;
-    resultText += `🔧 **Workflow Type:** ${sanitizedArgs.workflow_type}\n\n`;
+    // CRITICAL FIX: Extract workflow data from the correct path
+    // API client wraps the response, so actual data is at response.data.data
+    const workflowData = response.data?.data || response.data || {};
+    
+    console.log('=== MCP TOOL: Data extraction ===', {
+      hasResponseData: !!response.data,
+      hasNestedData: !!response.data?.data,
+      hasMessages: !!workflowData.messages,
+      messageCount: workflowData.messages?.length || 0,
+      messageTypes: workflowData.messages?.map(m => m.type) || []
+    });
 
-    if (response.data.messages && response.data.messages.length > 0) {
-      resultText += `💬 **Response Messages:**\n`;
-      response.data.messages.forEach((msg, index) => {
-        resultText += `${index + 1}. **${msg.type}:** ${msg.content}\n`;
+    // Extract workflow metadata
+    const workflowId = workflowData.workflow_context?.workflow_id || 
+                      requestPayload.workflow_context?.workflow_id ||
+                      'N/A';
+    
+    const threadId = workflowData.thread_id || 
+                    sanitizedArgs.thread_id ||
+                    'N/A';
+
+    // Format successful response header
+    let resultText = `✅ **LangGraph Workflow Executed Successfully**\n\n`;
+    resultText += `🆔 **Workflow ID:** ${workflowId}\n`;
+    resultText += `🧵 **Thread ID:** ${threadId}\n`;
+    resultText += `📊 **Status:** ${workflowData.workflow_context?.current_step || workflowData.current_step || 'completed'}\n`;
+    resultText += `🤖 **Active Persona:** ${workflowData.active_persona || sanitizedArgs.persona}\n`;
+    resultText += `🔧 **Workflow Type:** ${workflowData.workflow_context?.workflow_type || sanitizedArgs.workflow_type}\n\n`;
+
+    // Process and display messages
+    if (workflowData.messages && workflowData.messages.length > 0) {
+      const messages = workflowData.messages;
+      const humanMessages = messages.filter(msg => msg.type === 'human');
+      const aiMessages = messages.filter(msg => msg.type === 'ai');
+
+      console.log('=== MCP TOOL: Message analysis ===', {
+        totalMessages: messages.length,
+        humanCount: humanMessages.length,
+        aiCount: aiMessages.length,
+        workflowType: sanitizedArgs.workflow_type
       });
-      resultText += `\n`;
+
+      // Check if this is cross-persona coordination based on multiple AI messages
+      const isCrossPersonaCoordination = aiMessages.length > 1 && 
+                                        sanitizedArgs.workflow_type === 'cross_persona_coordination';
+
+      if (isCrossPersonaCoordination) {
+        resultText += `🎯 **Cross-Persona Expert Collaboration Result:**\n\n`;
+        resultText += `Multiple experts have collaborated to provide comprehensive guidance:\n\n`;
+        
+        aiMessages.forEach((msg, index) => {
+          if (msg && msg.content) {
+            // Extract persona from message metadata if available
+            const persona = msg.additional_kwargs?.active_persona || 
+                           msg.additional_kwargs?.from_persona ||
+                           `Expert ${index + 1}`;
+            
+            resultText += `## ${persona.toUpperCase().replace('_', ' ')} CONTRIBUTION:\n`;
+            resultText += `${msg.content}\n\n`;
+            resultText += `---\n\n`;
+          }
+        });
+        
+        resultText += `**Collaboration Summary:**\n`;
+        resultText += `${aiMessages.length} experts provided specialized insights to address your query comprehensively.\n`;
+      } else {
+        // Single persona or other workflow types
+        resultText += `🎯 **Workflow Response:**\n\n`;
+        
+        aiMessages.forEach((msg, index) => {
+          if (msg && msg.content) {
+            resultText += `${msg.content}\n\n`;
+          }
+        });
+      }
+    } else {
+      resultText += `⚠️ **No response messages found in workflow result.**\n`;
+      resultText += `🔍 **Available Data:** ${Object.keys(workflowData).join(', ')}\n`;
+      
+      // Provide debug information only when no messages are found
+      console.log('=== MCP TOOL: No messages found - Debug info ===', {
+        responseStructure: Object.keys(response),
+        dataStructure: Object.keys(workflowData),
+        fullResponse: JSON.stringify(workflowData, null, 2).substring(0, 500)
+      });
     }
 
-    if (response.data.execution_metadata) {
-      const meta = response.data.execution_metadata;
-      resultText += `⚡ **Performance:**\n`;
-      resultText += `• Execution Time: ${meta.execution_time_ms}ms\n`;
-      resultText += `• Step Count: ${meta.step_count}\n`;
-      resultText += `• Cache Hits: ${meta.cache_hits || 0}\n`;
+    // Add performance info if available
+    if (workflowData.execution_metadata) {
+      const meta = workflowData.execution_metadata;
+      resultText += `\n⚡ **Performance:**\n`;
+      resultText += `• Execution Time: ${meta.execution_time_ms || 'N/A'}ms\n`;
+      resultText += `• Step Count: ${meta.step_count || 'N/A'}\n`;
+      if (meta.cache_hits) {
+        resultText += `• Cache Hits: ${meta.cache_hits}\n`;
+      }
+      if (meta.persona_coordination) {
+        resultText += `• Persona Switches: ${meta.persona_coordination.switches_performed || 0}\n`;
+        resultText += `• Coordination Type: ${meta.persona_coordination.analysis?.type || 'N/A'}\n`;
+      }
     }
 
     return {

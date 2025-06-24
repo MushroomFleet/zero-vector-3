@@ -328,7 +328,22 @@ export const makeRequest = async (url, options = {}, serverKey = 'zeroVector') =
       params: options.params
     });
 
-    return apiClient.handleSuccessResponse(response);
+    // CRITICAL DEBUG: Log the raw response before processing
+    console.log('=== API CLIENT: RAW RESPONSE DEBUG ===');
+    console.log('Response status:', response.status);
+    console.log('Response data type:', typeof response.data);
+    console.log('Response data keys:', Object.keys(response.data || {}));
+    console.log('Response data structure:', JSON.stringify(response.data, null, 2));
+
+    const processedResponse = apiClient.handleSuccessResponse(response);
+    
+    console.log('=== API CLIENT: PROCESSED RESPONSE DEBUG ===');
+    console.log('Processed response keys:', Object.keys(processedResponse || {}));
+    console.log('Processed response.data type:', typeof processedResponse.data);
+    console.log('Processed response.data keys:', Object.keys(processedResponse.data || {}));
+    console.log('Has messages in processed:', !!processedResponse.data?.messages);
+    
+    return processedResponse;
   } catch (error) {
     return apiClient.handleErrorResponse(error, { url, ...options }, 1);
   }
