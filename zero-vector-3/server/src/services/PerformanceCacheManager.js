@@ -555,6 +555,12 @@ class PerformanceCacheManager {
 
   async setWithTTL(key, value, ttl, tags = []) {
     try {
+      // Check if Redis is available
+      if (!this.redis) {
+        logger.debug('Redis not available, cache operation skipped');
+        return false;
+      }
+
       const serialized = JSON.stringify(value);
       
       // Set main key
@@ -572,12 +578,22 @@ class PerformanceCacheManager {
 
     } catch (error) {
       this.stats.errors++;
-      throw error;
+      logger.debug('Redis operation failed, falling back gracefully', { 
+        operation: 'setWithTTL',
+        error: error.message 
+      });
+      return false;
     }
   }
 
   async get(key) {
     try {
+      // Check if Redis is available
+      if (!this.redis) {
+        logger.debug('Redis not available, cache miss');
+        return null;
+      }
+
       const value = await this.redis.get(key);
       
       if (value) {
@@ -588,38 +604,75 @@ class PerformanceCacheManager {
 
     } catch (error) {
       this.stats.errors++;
-      throw error;
+      logger.debug('Redis operation failed, cache miss', { 
+        operation: 'get',
+        error: error.message 
+      });
+      return null;
     }
   }
 
   async setTagMappings(key, tags, ttl) {
-    const pipeline = this.redis.pipeline();
-    
-    for (const tag of tags) {
-      const tagKey = `${this.config.redis.keyPrefix}tag:${tag}`;
-      pipeline.sadd(tagKey, key);
-      pipeline.expire(tagKey, ttl + 300); // Slightly longer TTL for tag keys
+    if (!this.redis) {
+      logger.debug('Redis not available, skipping tag mappings');
+      return;
     }
-    
-    await pipeline.exec();
+
+    try {
+      const pipeline = this.redis.pipeline();
+      
+      for (const tag of tags) {
+        const tagKey = `${this.config.redis.keyPrefix}tag:${tag}`;
+        pipeline.sadd(tagKey, key);
+        pipeline.expire(tagKey, ttl + 300); // Slightly longer TTL for tag keys
+      }
+      
+      await pipeline.exec();
+    } catch (error) {
+      logger.debug('Redis tag mapping failed', { error: error.message });
+    }
   }
 
   async getKeysByTag(tag) {
-    const tagKey = `${this.config.redis.keyPrefix}tag:${tag}`;
-    return await this.redis.smembers(tagKey);
+    if (!this.redis) {
+      logger.debug('Redis not available, returning empty key list');
+      return [];
+    }
+
+    try {
+      const tagKey = `${this.config.redis.keyPrefix}tag:${tag}`;
+      return await this.redis.smembers(tagKey);
+    } catch (error) {
+      logger.debug('Redis tag lookup failed', { error: error.message });
+      return [];
+    }
   }
 
   async deleteMultiple(keys) {
     if (keys.length === 0) return 0;
+    if (!this.redis) {
+      logger.debug('Redis not available, skipping delete operations');
+      return 0;
+    }
     
-    const pipeline = this.redis.pipeline();
-    keys.forEach(key => pipeline.del(key));
-    
-    const results = await pipeline.exec();
-    return results.reduce((count, [error, result]) => count + (error ? 0 : result), 0);
+    try {
+      const pipeline = this.redis.pipeline();
+      keys.forEach(key => pipeline.del(key));
+      
+      const results = await pipeline.exec();
+      return results.reduce((count, [error, result]) => count + (error ? 0 : result), 0);
+    } catch (error) {
+      logger.debug('Redis delete operation failed', { error: error.message });
+      return 0;
+    }
   }
 
   async updateAccessStats(key, entry) {
+    if (!this.redis) {
+      logger.debug('Redis not available, skipping access stats update');
+      return;
+    }
+
     try {
       const updatedEntry = {
         ...entry,

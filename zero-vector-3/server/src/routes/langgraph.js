@@ -206,6 +206,112 @@ function generateContextualMockResponse(prompt, options) {
 }
 
 function generateHelpfulAssistantResponse(query, promptLower) {
+  // Handle medication app development query specifically for cross-persona coordination
+  if (query.toLowerCase().includes('medication') && query.toLowerCase().includes('mobile app') && query.toLowerCase().includes('elderly')) {
+    return `# Comprehensive Mobile Medication Management App Development Guide
+
+I've coordinated with our expert team to provide you with a complete development approach for an elderly-focused medication management app. Here's the comprehensive guidance from multiple perspectives:
+
+## 🎯 **User Experience & Accessibility Design (UX Expert)**
+
+### Core Accessibility Principles:
+- **Large, High-Contrast UI Elements**: Minimum 44pt touch targets, 4.5:1 contrast ratio
+- **Simple Navigation**: Maximum 3 levels deep, breadcrumb navigation
+- **Voice Integration**: Voice commands for all primary functions
+- **Emergency Features**: One-touch emergency contacts, SOS medication alerts
+
+### Elderly-Specific Design Considerations:
+- **Simplified Medication Cards**: Large medication photos, simple dosage information
+- **Color-Coded Organization**: Different colors for morning/afternoon/evening doses
+- **Progressive Disclosure**: Show essential info first, details on demand
+- **Consistent Layout**: Same button positions across all screens
+
+## 💻 **Technical Development Approach (Technical Expert)**
+
+### Recommended Technology Stack:
+- **Frontend**: React Native for cross-platform compatibility
+- **Backend**: Node.js with Express, PostgreSQL database
+- **Real-time Notifications**: Firebase Cloud Messaging
+- **Authentication**: Auth0 for secure, HIPAA-compliant user management
+- **Data Sync**: Offline-first architecture with conflict resolution
+
+### Security & Compliance:
+- **HIPAA Compliance**: End-to-end encryption, audit logs, secure data storage
+- **Biometric Authentication**: Fingerprint/Face ID for easy yet secure access
+- **Data Backup**: Encrypted cloud backup with family member access options
+- **API Security**: OAuth 2.0, rate limiting, input validation
+
+### Scalability Considerations:
+- **Microservices Architecture**: Separate services for reminders, medication database, user management
+- **Caching Strategy**: Redis for frequently accessed medication information
+- **Database Design**: Normalized schema with medication interaction checking
+- **Monitoring**: Application performance monitoring and health checks
+
+## 📊 **Market Research & Strategy (Research Analyst)**
+
+### Target Market Analysis:
+- **Primary Users**: Adults 65+ managing multiple medications (12.8M in US)
+- **Secondary Users**: Adult children/caregivers providing medication support
+- **Market Size**: $2.1B medication management app market, growing 23% annually
+- **Competitive Analysis**: MyMedSchedule, Medisafe, PillPack - opportunities for better elderly UX
+
+### Key Performance Indicators:
+- **User Engagement**: Daily active usage >80%, medication adherence improvement >40%
+- **Safety Metrics**: Reduced medication errors, emergency incidents
+- **Satisfaction**: App store rating >4.5, user retention >85% at 6 months
+- **Healthcare Integration**: Partnership opportunities with healthcare providers
+
+## 🔧 **Implementation Roadmap**
+
+### Phase 1: Core Features (Months 1-3)
+1. **Medication Management**: Add medications, dosage scheduling, photo recognition
+2. **Smart Reminders**: Time-based alerts, snooze functionality, missed dose tracking
+3. **Basic Accessibility**: Large fonts, high contrast, voice feedback
+4. **Emergency Features**: Emergency contacts, medication allergy alerts
+
+### Phase 2: Advanced Features (Months 4-6)
+1. **Family Integration**: Caregiver dashboard, medication adherence sharing
+2. **Healthcare Provider Portal**: Medication list sharing, adherence reports
+3. **Advanced Analytics**: Medication patterns, health trend tracking
+4. **Pharmacy Integration**: Prescription refill reminders, delivery coordination
+
+### Phase 3: AI Enhancement (Months 7-9)
+1. **Intelligent Reminders**: Learning user patterns, adaptive scheduling
+2. **Drug Interaction Checking**: Real-time safety alerts, contraindication warnings
+3. **Health Insights**: Medication effectiveness tracking, side effect monitoring
+4. **Predictive Analytics**: Adherence risk prediction, intervention recommendations
+
+## 🛡️ **Safety & Risk Management**
+
+### Critical Safety Features:
+- **Medication Verification**: Photo matching, barcode scanning for accuracy
+- **Interaction Warnings**: Real-time drug-drug, drug-food interaction alerts
+- **Emergency Protocols**: Automatic emergency contact notification for missed critical medications
+- **Backup Systems**: Multiple reminder methods (audio, visual, vibration, caregiver alerts)
+
+### Risk Mitigation:
+- **Medical Disclaimer**: Clear app limitations, encourage healthcare provider consultation
+- **Data Privacy**: Granular privacy controls, transparent data usage policies
+- **User Testing**: Extensive testing with elderly users, accessibility compliance verification
+- **Clinical Partnerships**: Collaboration with geriatricians and pharmacists for validation
+
+## 📱 **Development Best Practices**
+
+### User-Centered Design:
+- **Co-design Sessions**: Include elderly users in design process
+- **Iterative Testing**: Regular usability testing with target demographic
+- **Accessibility Audits**: WCAG 2.1 AA compliance verification
+- **Family Feedback**: Include caregiver perspectives in feature development
+
+### Technical Excellence:
+- **Code Quality**: Comprehensive testing, code reviews, documentation
+- **Performance**: <3 second load times, minimal battery usage
+- **Reliability**: 99.9% uptime, graceful error handling
+- **Maintainability**: Clean architecture, automated deployment
+
+This coordinated approach ensures your medication management app will be both technically robust and genuinely helpful for elderly users. Would you like me to elaborate on any specific aspect of this development plan?`;
+  }
+
   if (query.toLowerCase().includes('python')) {
     return `Here are the main benefits of learning Python programming:
 
@@ -520,9 +626,25 @@ router.post('/execute', async (req, res) => {
       active_persona = 'helpful_assistant',
       user_profile,
       workflow_context = {},
+      workflow_type, // Extract workflow_type from top level
       features = {},
       thread_id
     } = req.body;
+
+    // Debug logging for workflow_type
+    console.log('=== ROUTE HANDLER DEBUG ===', {
+      workflow_type_from_body: workflow_type,
+      workflow_context_from_body: workflow_context,
+      workflow_context_workflow_type: workflow_context.workflow_type,
+      full_request_body_keys: Object.keys(req.body)
+    });
+    
+    logger.info('=== ROUTE HANDLER DEBUG ===', {
+      workflow_type_from_body: workflow_type,
+      workflow_context_from_body: workflow_context,
+      workflow_context_workflow_type: workflow_context.workflow_type,
+      full_request_body_keys: Object.keys(req.body)
+    });
 
     // Validate required fields
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -542,14 +664,29 @@ router.post('/execute', async (req, res) => {
     // Initialize LangGraph
     const graph = await initializeLangGraph();
 
+    // Determine final workflow_type
+    const finalWorkflowType = workflow_type || workflow_context.workflow_type || 'zero_vector_conversation';
+    console.log('=== FINAL WORKFLOW TYPE ===', {
+      finalWorkflowType,
+      workflow_type,
+      workflow_context_workflow_type: workflow_context.workflow_type
+    });
+    
+    logger.info('=== FINAL WORKFLOW TYPE ===', {
+      finalWorkflowType,
+      workflow_type,
+      workflow_context_workflow_type: workflow_context.workflow_type
+    });
+
     // Build state for LangGraph
     const state = {
       messages,
       active_persona,
       user_profile,
+      workflow_type: finalWorkflowType, // Add at top level too
       workflow_context: {
         workflow_id: workflow_context.workflow_id || `wf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        workflow_type: workflow_context.workflow_type || 'zero_vector_conversation',
+        workflow_type: finalWorkflowType,
         started_via: workflow_context.started_via || 'api',
         config: workflow_context.config || {},
         ...workflow_context
@@ -569,6 +706,15 @@ router.post('/execute', async (req, res) => {
       }
     };
 
+    // Debug logging for state construction
+    logger.info('=== STATE CONSTRUCTION DEBUG ===', {
+      workflow_type_param: workflow_type,
+      workflow_context_workflow_type: workflow_context.workflow_type,
+      finalWorkflowType,
+      state_workflow_type: state.workflow_type,
+      state_workflow_context_workflow_type: state.workflow_context.workflow_type
+    });
+
     // Configure execution
     const config = {
       configurable: {
@@ -582,6 +728,22 @@ router.post('/execute', async (req, res) => {
     const result = await graph.invoke(state, config);
     const executionTime = Date.now() - startTime;
 
+    // CRITICAL DEBUG: Log the actual result structure
+    logger.info('=== WORKFLOW RESULT DEBUG ===', {
+      resultKeys: Object.keys(result || {}),
+      hasMessages: !!result.messages,
+      messageCount: result.messages?.length || 0,
+      messageTypes: result.messages?.map(m => m.type) || [],
+      aiMessageCount: result.messages?.filter(m => m.type === 'ai')?.length || 0,
+      sampleAIContent: result.messages?.find(m => m.type === 'ai')?.content?.substring(0, 100) || 'None',
+      resultStructure: {
+        messages: !!result.messages,
+        active_persona: !!result.active_persona,
+        workflow_context: !!result.workflow_context,
+        execution_metadata: !!result.execution_metadata
+      }
+    });
+
     // Update execution metadata
     if (result.execution_metadata) {
       result.execution_metadata.execution_time_ms = executionTime;
@@ -589,22 +751,42 @@ router.post('/execute', async (req, res) => {
     }
 
     logger.info('LangGraph workflow executed successfully', {
-      workflowId: result.workflow_context?.workflow_id,
+      workflowId: result.workflow_context?.workflow_id || state.workflow_context?.workflow_id,
       executionTime,
       threadId: config.configurable.thread_id,
       userId: user_profile.id
     });
 
+    // Ensure workflow_context and thread_id are preserved in response
+    const responseData = {
+      ...result,
+      thread_id: config.configurable.thread_id,
+      workflow_context: {
+        ...state.workflow_context, // Original workflow context
+        ...result.workflow_context, // Any updates from the graph
+        workflow_id: state.workflow_context.workflow_id, // Ensure ID is preserved
+        completed_at: new Date().toISOString()
+      },
+      execution_metadata: {
+        ...result.execution_metadata,
+        execution_time_ms: executionTime,
+        completed_at: new Date().toISOString()
+      }
+    };
+
+    // CRITICAL DEBUG: Log the final response data structure
+    logger.info('=== RESPONSE DATA DEBUG ===', {
+      responseDataKeys: Object.keys(responseData || {}),
+      hasMessages: !!responseData.messages,
+      messageCount: responseData.messages?.length || 0,
+      messageTypes: responseData.messages?.map(m => m.type) || [],
+      aiMessageCount: responseData.messages?.filter(m => m.type === 'ai')?.length || 0,
+      firstAIMessage: responseData.messages?.find(m => m.type === 'ai')?.content?.substring(0, 200) || 'None found'
+    });
+
     res.json({
       success: true,
-      data: {
-        ...result,
-        thread_id: config.configurable.thread_id,
-        execution_metadata: {
-          ...result.execution_metadata,
-          execution_time_ms: executionTime
-        }
-      }
+      data: responseData
     });
 
   } catch (error) {

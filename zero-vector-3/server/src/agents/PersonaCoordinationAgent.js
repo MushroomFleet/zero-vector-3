@@ -230,29 +230,68 @@ class PersonaCoordinationAgent {
     const domains = [];
     const keywords = [];
 
-    // Technical domain detection
-    const technicalKeywords = ['code', 'algorithm', 'programming', 'implement', 'debug', 'optimize', 'function', 'class', 'variable'];
-    if (technicalKeywords.some(keyword => lowerQuery.includes(keyword))) {
+    // Technical domain detection - Enhanced patterns
+    const technicalKeywords = [
+      'code', 'algorithm', 'programming', 'implement', 'debug', 'optimize', 'function', 'class', 'variable',
+      'technical', 'development', 'software', 'app', 'application', 'system', 'architecture', 'database',
+      'api', 'framework', 'library', 'backend', 'frontend', 'mobile', 'web', 'technology', 'platform'
+    ];
+    const technicalPhrases = [
+      'technical development', 'development approach', 'mobile app', 'software development',
+      'system design', 'technical solution', 'implementation strategy'
+    ];
+    
+    if (technicalKeywords.some(keyword => lowerQuery.includes(keyword)) ||
+        technicalPhrases.some(phrase => lowerQuery.includes(phrase))) {
       domains.push('programming');
       keywords.push(...technicalKeywords.filter(k => lowerQuery.includes(k)));
     }
 
-    // Creative domain detection
-    const creativeKeywords = ['write', 'story', 'creative', 'narrative', 'content', 'poem', 'article'];
+    // UX/Design domain detection - Enhanced patterns  
+    const designKeywords = [
+      'design', 'user experience', 'user interface', 'ux', 'ui', 'usability', 'accessibility',
+      'user-friendly', 'interface', 'interaction', 'visual', 'layout', 'wireframe', 'prototype'
+    ];
+    const designPhrases = [
+      'user experience design', 'user interface design', 'ux design', 'ui design',
+      'design approach', 'accessibility design', 'user-centered design'
+    ];
+    
+    if (designKeywords.some(keyword => lowerQuery.includes(keyword)) ||
+        designPhrases.some(phrase => lowerQuery.includes(phrase))) {
+      domains.push('design');
+      keywords.push(...designKeywords.filter(k => lowerQuery.includes(k)));
+    }
+
+    // Creative domain detection - Enhanced patterns
+    const creativeKeywords = [
+      'write', 'story', 'creative', 'narrative', 'content', 'poem', 'article', 'copy', 'text',
+      'messaging', 'communication', 'branding', 'creative writing'
+    ];
     if (creativeKeywords.some(keyword => lowerQuery.includes(keyword))) {
       domains.push('writing');
       keywords.push(...creativeKeywords.filter(k => lowerQuery.includes(k)));
     }
 
-    // Research domain detection
-    const researchKeywords = ['analyze', 'research', 'data', 'trends', 'compare', 'study', 'findings'];
-    if (researchKeywords.some(keyword => lowerQuery.includes(keyword))) {
+    // Research/Analysis domain detection - Enhanced patterns
+    const researchKeywords = [
+      'analyze', 'research', 'data', 'trends', 'compare', 'study', 'findings', 'analysis',
+      'insights', 'evaluation', 'assessment', 'investigation', 'accessibility', 'compliance',
+      'best practices', 'standards', 'guidelines', 'elderly users', 'user research'
+    ];
+    const researchPhrases = [
+      'accessibility requirements', 'user research', 'best practices', 'compliance standards',
+      'elderly users', 'target audience', 'user needs analysis'
+    ];
+    
+    if (researchKeywords.some(keyword => lowerQuery.includes(keyword)) ||
+        researchPhrases.some(phrase => lowerQuery.includes(phrase))) {
       domains.push('analysis');
       keywords.push(...researchKeywords.filter(k => lowerQuery.includes(k)));
     }
 
     // General knowledge domain detection
-    const generalKeywords = ['explain', 'help', 'what is', 'how to', 'guide', 'assist'];
+    const generalKeywords = ['explain', 'help', 'what is', 'how to', 'guide', 'assist', 'advice', 'guidance'];
     if (generalKeywords.some(keyword => lowerQuery.includes(keyword))) {
       domains.push('general_knowledge');
       keywords.push(...generalKeywords.filter(k => lowerQuery.includes(k)));
@@ -345,6 +384,10 @@ class PersonaCoordinationAgent {
       originalPersona: state.active_persona
     });
 
+    // Store the base messages (human input) to preserve throughout collaboration
+    const baseMessages = currentState.messages ? [...currentState.messages] : [];
+    let accumulatedMessages = [...baseMessages];
+
     for (let i = 0; i < personaSequence.length && i < this.config.maxPersonaSwitches; i++) {
       const persona = personaSequence[i];
       
@@ -356,20 +399,46 @@ class PersonaCoordinationAgent {
       // Execute persona with collaborative context
       const personaResponse = await this.executePersonaWithCollaborativeContext(currentState, i, personaSequence);
       
+      // CRITICAL: Accumulate ALL messages from each persona response
       if (personaResponse.messages && personaResponse.messages.length > 0) {
-        collaborativeResponses.push({
-          persona,
-          response: personaResponse.messages[personaResponse.messages.length - 1],
-          step: i + 1
-        });
+        // Find new AI messages added by this persona (skip the collaborative human message we added)
+        const newAIMessages = personaResponse.messages.filter(msg => 
+          msg.type === 'ai' && 
+          !accumulatedMessages.some(existing => existing === msg)
+        );
+
+        // Add new AI messages to our accumulated messages
+        accumulatedMessages.push(...newAIMessages);
+
+        // Store collaborative response for potential synthesis
+        const latestAIMessage = newAIMessages[newAIMessages.length - 1];
+        if (latestAIMessage) {
+          collaborativeResponses.push({
+            persona,
+            response: latestAIMessage,
+            step: i + 1
+          });
+        }
       }
       
-      currentState = personaResponse;
+      // Update current state with accumulated messages to preserve all persona contributions
+      currentState = {
+        ...personaResponse,
+        messages: [...accumulatedMessages]
+      };
     }
 
-    // Synthesize collaborative responses
+    // For collaborative workflows, we want to preserve all individual persona responses
+    // rather than synthesizing them into a single response, so users can see each expert's contribution
     if (collaborativeResponses.length > 1) {
-      currentState = await this.synthesizeCollaborativeResponses(currentState, collaborativeResponses);
+      // Add a final synthesis message that references all the expert contributions
+      const synthesisMessage = this.createCollaborativeSummary(collaborativeResponses, state);
+      accumulatedMessages.push(synthesisMessage);
+      
+      currentState = {
+        ...currentState,
+        messages: [...accumulatedMessages]
+      };
     }
 
     return currentState;
@@ -457,9 +526,30 @@ class PersonaCoordinationAgent {
       personaSequence
     );
 
-    // Create modified state with collaborative context
+    // Create a collaborative query for this persona
+    const originalQuery = state.persona_coordination?.shared_context?.original_query || 
+                         state.messages?.[0]?.content || '';
+    
+    const collaborativeQuery = `${collaborativeInstruction}\n\nOriginal Query: ${originalQuery}`;
+
+    // Create modified state with collaborative context and proper human message
     const collaborativeState = {
       ...state,
+      messages: [
+        // Keep original human message
+        ...(state.messages?.filter(msg => msg.type === 'human') || []),
+        // Add collaborative instruction as human message for this persona
+        {
+          type: 'human',
+          content: collaborativeQuery,
+          additional_kwargs: {
+            collaborative_step: true,
+            step_index: stepIndex,
+            persona: state.active_persona,
+            original_query: originalQuery
+          }
+        }
+      ],
       persona_coordination: {
         ...state.persona_coordination,
         shared_context: {
@@ -631,6 +721,39 @@ class PersonaCoordinationAgent {
     prompt += "Please provide a unified response that integrates all these perspectives while maintaining clarity and coherence.";
     
     return prompt;
+  }
+
+  /**
+   * Create collaborative summary message that references all expert contributions
+   */
+  createCollaborativeSummary(collaborativeResponses, originalState) {
+    const expertCount = collaborativeResponses.length;
+    const personaNames = collaborativeResponses.map(r => r.persona.replace('_', ' ')).join(', ');
+    
+    let summaryContent = `# Cross-Persona Expert Collaboration Complete\n\n`;
+    summaryContent += `I've coordinated with ${expertCount} specialized experts to provide you with comprehensive guidance:\n\n`;
+    
+    collaborativeResponses.forEach((response, index) => {
+      const expertName = response.persona.replace('_', ' ').toUpperCase();
+      summaryContent += `## ${index + 1}. ${expertName} PERSPECTIVE\n`;
+      summaryContent += `${response.response.content}\n\n`;
+    });
+    
+    summaryContent += `---\n\n`;
+    summaryContent += `This collaborative response incorporates insights from ${personaNames}, `;
+    summaryContent += `ensuring you receive well-rounded expertise across all relevant domains for your query.`;
+
+    return {
+      type: 'ai',
+      content: summaryContent,
+      additional_kwargs: {
+        collaborative_summary: true,
+        expert_count: expertCount,
+        participating_personas: collaborativeResponses.map(r => r.persona),
+        synthesis_type: 'cross_persona_coordination',
+        workflow_generated: true
+      }
+    };
   }
 
   /**

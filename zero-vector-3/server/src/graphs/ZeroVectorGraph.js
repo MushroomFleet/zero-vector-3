@@ -110,20 +110,21 @@ class ZeroVectorGraph {
       const stateSchema = z.object({
         messages: z.array(z.any()).default([]),
         active_persona: z.string().optional(),
-        user_profile: z.object({}).optional(),
+        user_profile: z.any().optional(),
         vector_results: z.array(z.any()).default([]),
         graph_relationships: z.array(z.any()).default([]),
-        memory_context: z.object({}).optional(),
-        workflow_context: z.object({}).optional(),
-        approval_context: z.object({}).optional(),
+        memory_context: z.any().optional(),
+        workflow_context: z.any().optional(), // Allow any object structure to preserve all properties
+        approval_context: z.any().optional(),
         requires_approval: z.boolean().default(false),
-        execution_metadata: z.object({}).optional(),
-        features: z.object({}).default({}),
+        execution_metadata: z.any().optional(),
+        features: z.any().default({}),
         errors: z.array(z.any()).default([]),
         memory_maintenance_required: z.boolean().default(false),
         memory_maintenance_reason: z.string().optional(),
-        memory_maintenance_results: z.object({}).optional(),
-        persona_context: z.object({}).optional()
+        memory_maintenance_results: z.any().optional(),
+        persona_context: z.any().optional(),
+        workflow_type: z.string().optional() // Add top-level workflow_type support
       });
 
       // Create state graph with proper Zod schema as first parameter
@@ -255,20 +256,59 @@ class ZeroVectorGraph {
         userId: state.user_profile?.id
       });
 
+      // CRITICAL DEBUG - Log the exact state as it enters the retrieve node
+      logger.info('=== RETRIEVE NODE INPUT STATE DEBUG ===', {
+        state_workflow_type: state.workflow_type,
+        state_workflow_context: state.workflow_context,
+        state_keys: Object.keys(state),
+        has_workflow_context: !!state.workflow_context,
+        workflow_context_keys: state.workflow_context ? Object.keys(state.workflow_context) : null
+      });
+
       // Check cache first for performance optimization
       const query = state.messages?.[state.messages.length - 1]?.content || '';
       const cachedResults = await this.checkRetrievalCache(query, state);
       
-      let updatedState = ZeroVectorStateManager.updateWorkflowContext(state, {
-        workflow_id: state.workflow_context?.workflow_id || `workflow_${Date.now()}`,
-        workflow_type: 'zero_vector_conversation',
-        current_step: 'retrieve',
-        completed_steps: [],
-        reasoning_path: ['Starting hybrid retrieval with cache check'],
-        decision_points: [],
-        branch_history: ['retrieve'],
-        interrupt_points: [],
-        resumable: true
+      // Extract workflow_type from state - PRIORITIZE the top-level workflow_type over everything else
+      const workflowType = state.workflow_type || 
+                          state.workflow_context?.workflow_type || 
+                          'zero_vector_conversation';
+
+      // More detailed debug logging
+      logger.info('=== RETRIEVE NODE WORKFLOW TYPE EXTRACTION ===', {
+        state_workflow_type: state.workflow_type,
+        state_workflow_context_workflow_type: state.workflow_context?.workflow_type,
+        extracted_workflow_type: workflowType,
+        precedence_used: state.workflow_type ? 'state.workflow_type' : 
+                        (state.workflow_context?.workflow_type ? 'state.workflow_context.workflow_type' : 'default')
+      });
+
+      // DIRECTLY update the workflow context to preserve the workflow_type
+      // Instead of using ZeroVectorStateManager.updateWorkflowContext which replaces everything
+      let updatedState = {
+        ...state,
+        workflow_context: {
+          // Preserve ALL existing workflow context properties FIRST
+          ...(state.workflow_context || {}),
+          // Then override specific properties while preserving workflow_type
+          workflow_id: state.workflow_context?.workflow_id || `workflow_${Date.now()}`,
+          workflow_type: workflowType, // Use the correctly extracted workflow_type
+          current_step: 'retrieve',
+          completed_steps: state.workflow_context?.completed_steps || [],
+          reasoning_path: [...(state.workflow_context?.reasoning_path || []), 'Starting hybrid retrieval with cache check'],
+          decision_points: state.workflow_context?.decision_points || [],
+          branch_history: [...(state.workflow_context?.branch_history || []), 'retrieve'],
+          interrupt_points: state.workflow_context?.interrupt_points || [],
+          resumable: true
+        }
+      };
+
+      logger.info('=== AFTER DIRECT WORKFLOW CONTEXT UPDATE ===', {
+        original_workflow_type: state.workflow_context?.workflow_type,
+        extracted_workflow_type: workflowType,
+        updated_workflow_type: updatedState.workflow_context?.workflow_type,
+        updated_workflow_context: updatedState.workflow_context,
+        preserve_success: updatedState.workflow_context?.workflow_type === workflowType
       });
 
       if (cachedResults) {
@@ -746,16 +786,44 @@ class ZeroVectorGraph {
         }
       });
 
-      // Add success message if no AI response was generated
+      // CRITICAL DEBUG: Log message state before fallback check
+      const aiMessages = updatedState.messages?.filter(m => m.type === 'ai') || [];
+      const totalMessages = updatedState.messages?.length || 0;
+      
+      logger.info('=== FINALIZE NODE MESSAGE CHECK ===', {
+        totalMessages,
+        aiMessageCount: aiMessages.length,
+        hasAIMessages: aiMessages.length > 0,
+        messageTypes: updatedState.messages?.map(m => m.type) || [],
+        collaborativeWorkflow: !!updatedState.persona_coordination,
+        handoffCount: updatedState.persona_coordination?.handoffs?.length || 0
+      });
+
+      // Only add fallback message if we genuinely have NO AI responses
+      // This should NEVER happen in cross-persona coordination workflows
       if (!updatedState.messages?.some(m => m.type === 'ai')) {
+        logger.warn('=== NO AI MESSAGES FOUND - ADDING FALLBACK ===', {
+          totalMessages: updatedState.messages?.length || 0,
+          workflowType: updatedState.workflow_context?.workflow_type,
+          coordinationEnabled: !!updatedState.persona_coordination,
+          lastStep: updatedState.workflow_context?.current_step
+        });
+
         updatedState = ZeroVectorStateManager.addMessage(updatedState, {
           type: 'ai',
           content: 'I apologize, but I encountered an issue processing your request. Please try again or rephrase your question.',
           additional_kwargs: {
             fallback_response: true,
             workflow_completed: true,
-            phase3_enhanced: true
+            phase3_enhanced: true,
+            debug_total_messages: updatedState.messages?.length || 0
           }
+        });
+      } else {
+        logger.info('=== AI MESSAGES FOUND - PRESERVING RESPONSES ===', {
+          aiMessageCount: aiMessages.length,
+          totalMessages: updatedState.messages?.length || 0,
+          coordinationType: updatedState.persona_coordination?.coordination_metadata?.coordination_type
         });
       }
 
@@ -878,38 +946,70 @@ class ZeroVectorGraph {
    */
   routeAfterRetrieval(state) {
     try {
+      // Use console.log to ensure we see the output
+      console.log('=== ROUTING DECISION START ===', {
+        state_keys: Object.keys(state),
+        workflow_context: state.workflow_context,
+        workflow_type: state.workflow_context?.workflow_type,
+        memory_context: state.memory_context,
+        errors_length: state.errors?.length || 0
+      });
+      
+      logger.info('=== ROUTING DECISION START ===', {
+        state_keys: Object.keys(state),
+        workflow_context: state.workflow_context,
+        workflow_type: state.workflow_context?.workflow_type,
+        memory_context: state.memory_context,
+        errors_length: state.errors?.length || 0
+      });
+
       // Check for errors first
       if (state.errors && state.errors.length > 0) {
-        logger.debug('Routing to error handler due to errors');
+        logger.info('Routing to error handler due to errors');
         return "error";
       }
 
       // Check if memory maintenance is required
       if (state.memory_maintenance_required) {
-        logger.debug('Routing to memory maintenance');
+        logger.info('Routing to memory maintenance');
         return "maintenance";
+      }
+
+      // Check for cross-persona coordination workflow type
+      const workflowType = state.workflow_context?.workflow_type;
+      logger.info('=== WORKFLOW TYPE CHECK ===', { 
+        workflowType,
+        isCoordination: workflowType === 'cross_persona_coordination',
+        hasWorkflowContext: !!state.workflow_context,
+        fullWorkflowContext: state.workflow_context
+      });
+      
+      if (workflowType === 'cross_persona_coordination') {
+        logger.info('=== ROUTING TO COORDINATION ===');
+        return "coordination";
       }
 
       // Check query complexity
       const complexity = state.memory_context?.query_complexity || 'simple';
+      logger.info('Query complexity check', { complexity });
       
       // Check for sensitive content with enhanced risk assessment
       if (this.isSensitiveContentEnhanced(state)) {
-        logger.debug('Routing to human approval due to sensitive content');
+        logger.info('Routing to human approval due to sensitive content');
         return "sensitive";
       }
 
       // Route based on complexity
       if (complexity === 'complex') {
-        logger.debug('Routing to reasoning due to complex query');
+        logger.info('Routing to reasoning due to complex query');
         return "complex";
       }
 
-      logger.debug('Routing to persona processing for simple/moderate query');
+      logger.info('=== ROUTING TO SIMPLE (PERSONA_PROCESS) ===');
       return "simple";
 
     } catch (error) {
-      logger.warn('Error in routing after retrieval', { error: error.message });
+      logger.error('=== ERROR IN ROUTING ===', { error: error.message, stack: error.stack });
       return "error";
     }
   }
